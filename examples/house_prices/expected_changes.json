@@ -1,0 +1,132 @@
+{
+  "source": "Supplied Ames housing sample; ListingNotes are synthetic.",
+  "versions": [
+    600,
+    660,
+    702,
+    700,
+    1000
+  ],
+  "cases": [
+    {
+      "pair": [
+        1,
+        2
+      ],
+      "checks": {
+        "movement.added": 60,
+        "movement.removed": 0,
+        "movement.changed": 0,
+        "movement.unchanged": 600,
+        "movement.exact": true
+      }
+    },
+    {
+      "pair": [
+        2,
+        3
+      ],
+      "checks": {
+        "movement.added": 50,
+        "movement.removed": 10,
+        "movement.changed": 62,
+        "movement.unchanged": 586,
+        "movement.exact": false,
+        "movement.ambiguous_identities": 2,
+        "movement.duplicate_identity_rows_after": 4
+      }
+    },
+    {
+      "pair": [
+        3,
+        4
+      ],
+      "checks": {
+        "after": 700,
+        "movement.changed": 62,
+        "movement.exact": false
+      }
+    },
+    {
+      "pair": [
+        4,
+        5
+      ],
+      "checks": {
+        "movement.added": 300,
+        "movement.removed": 0,
+        "movement.changed": 0,
+        "movement.unchanged": 700,
+        "movement.exact": true
+      }
+    }
+  ],
+  "expected_signals": [
+    {
+      "from": 2,
+      "to": 3,
+      "kind": "missing_values",
+      "column": "SalePrice",
+      "after": 40
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "kind": "identity_conflict"
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "kind": "unusual_values",
+      "column": "SalePrice"
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "kind": "unusual_values",
+      "column": "GrLivArea"
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "kind": "value_mix",
+      "column": "Neighborhood"
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "kind": "missing_values",
+      "column": "SaleAmount",
+      "after": 0
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "kind": "possible_rename",
+      "column": "SaleAmount"
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "kind": "number_format",
+      "column": "SaleAmount"
+    },
+    {
+      "from": 4,
+      "to": 5,
+      "kind": "record_count",
+      "after": 1000
+    },
+    {
+      "from": 4,
+      "to": 5,
+      "kind": "schema"
+    }
+  ],
+  "notes": [
+    "40 sale prices blanked; 12 records given extreme prices and living areas; 10 neighborhood labels altered.",
+    "V3 includes 50 new IDs, 10 removals, and two repeated identities. Ambiguous record counts are intentionally incomplete.",
+    "V4 repairs those values, removes repeated identities, renames SalePrice to SaleAmount, and writes prices as decimals.",
+    "V5 adds 300 records and SourceBatch. Existing records remain unchanged on shared fields."
+  ]
+}

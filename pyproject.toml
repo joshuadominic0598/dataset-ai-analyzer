@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "analytic-brain"
+version = "0.2.0"
+description = "Explore datasets and compare versions with an evidence-backed AI data analyst."
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+analytic-brain = "reviso.server:main"
+reviso = "reviso.server:main"
+
+[tool.setuptools.packages.find]
+include = ["reviso*"]
+
+[tool.setuptools.package-data]
+reviso = ["static/*"]

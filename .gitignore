@@ -1,0 +1,15 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+!.env.example
+.reviso/
+outputs/
+playwright-report/
+test-results/
+# Supplied reference package and source data remain local.
+AuditPackage/
+house_prices_dataset/
+examples/house_prices/*.csv
