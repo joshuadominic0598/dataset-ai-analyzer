@@ -1,149 +1,54 @@
 # Analytic Brain
 
-**Your data, understood.**
+Explore one dataset or compare up to five versions with an AI data analyst. Find missing values, unusual records, group differences, and changes over time, then ask questions with source evidence.
 
-Analytic Brain explores a single dataset or compares two to five versions, with an AI data analyst that can query the underlying records and cite its evidence. The local black-and-orange workspace combines reproducible measurements with guided analysis, a blue brain identity, and an analyst launcher at the bottom right.
-
-Upload one CSV to begin. Tell the analyst what a row represents and what you want to learn, or discuss those questions in chat before generating a report. Explore field meanings, missing values, ranges, unusual records, groups, relationships, and time coverage. Adding more versions enables record changes and possible field renames. Conversations remain linked to saved inputs.
+The app runs locally with SQLite storage and a black-and-orange interface. Use local Ollama models (Qwen 8B by default), or connect Gemini, OpenAI, or Groq. Cloud analysis is optional.
 
 ## Run locally
 
-Python 3.9 or newer. No Python packages, Node installation, or external database are required to run the app.
+Python 3.9 or newer. The application has no third-party runtime dependencies.
 
 ```sh
-python3 -m reviso --demo
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+analytic-brain --demo
 ```
 
-Open [Analytic Brain on localhost](http://127.0.0.1:8765). The demo uses the supplied housing CSV when available and falls back to generated housing data in a clean checkout. It creates five snapshots, a deliberately problematic import, repairs, a field rename, and a larger partner import. All listing descriptions in the demo are synthetic.
+Open [localhost:8765](http://127.0.0.1:8765). Omit `--demo` for an empty workspace. The existing `python -m reviso` and `reviso` commands remain available after installation.
 
-For an empty workspace:
-
-```sh
-python3 -m reviso
-```
-
-The visible product and installed command are **Analytic Brain** (`analytic-brain` after installation). The existing Python module `reviso`, request token header, browser preferences, and `.reviso/` storage remain compatible with prior workspaces.
-
-The app stores snapshots, reports, conversations, and operational traces in `.reviso/reviso.sqlite`. The server binds to loopback. This first version is a personal local application; it has no hosted deployment or multi-user authentication.
+Snapshots, reports, conversations, and saved connections stay in `.reviso/`, which is excluded from Git. Existing workspaces continue to work.
 
 ## What you can do
 
-- **Explore one file.** See suggested identifiers, nominal categories, ordinal ratings, numeric measures, dates, booleans, and text. Correct field meanings or supply an explicit category order in setup. Profiles cover the full file; model context and displayed examples are bounded.
-- **Guide the analysis.** Choose a subject such as orders, doctors, claims, prices, supply chain, or time series. Clarify row meaning, goals, important fields, a numeric measure, and an optional date field. The analyst asks domain-specific follow-ups.
-- **Compare a timeline.** Inspect each neighboring pair and a separate first-to-latest comparison. Original source bytes and SHA-256 fingerprints are preserved.
-- **Follow individual records.** Choose one or several identity columns. Repeated or missing identifiers remain visible, with incomplete matching labeled explicitly. Without a usable identity, Analytic Brain compares row content without inventing edit counts.
-- **Find changes worth investigating.** See record growth, removals, edits, completeness changes, new labels, type changes, numeric formatting, and unusual values. Flags suggest follow-up checks; they do not certify that records are wrong.
-- **Resolve ambiguous field names.** Similar values can suggest a rename. Confirm the shared meaning or keep the fields separate in setup, then generate a new report.
-- **Chat with evidence.** Chat is available as soon as one file is uploaded, including before setup or a final report. A connected model can clarify your goals, inspect field profiles, investigate with bounded read-only SQL, and explain results with citations. Conversations remain scoped to the saved report. Evidence-only mode offers a clearly labeled evidence lookup and direct SQL.
-- **Search descriptions by meaning.** Analytic Brain suggests prose-like columns and asks before embedding them. Optional vectors live in SQLite. Numeric and category-only workflows do not need an embedding service.
-- **Inspect and export.** Read field profiles, query original version tables, inspect model/tool traces, leave run feedback, and export HTML, Markdown, or complete JSON evidence.
+- Profile a single CSV or compare two to five complete snapshots.
+- Clarify row meaning, important fields, category orders, and analysis goals.
+- Investigate records through read-only SQL and evidence-linked chat.
+- Choose low or high investigation effort and a supported model context.
+- Optionally search description fields by meaning after selecting columns and a connection.
+- Inspect run activity and export HTML, Markdown, or complete JSON evidence.
 
-## Connect models
+## Project layout
 
-Open **Models** in the sidebar to configure four connections. Save an API key for a cloud provider or use its server environment variable. Choose **Refresh models** to load the provider's current text-model catalog, then select a model in the investigation bar. A custom model ID remains available for models the catalog does not classify. Connections can be configured before importing a dataset.
+| Folder | Purpose |
+| --- | --- |
+| `src/reviso/` | Application, analysis, model connections, and browser assets |
+| `tests/` | Unit and HTTP tests, shared test doubles, and reference fixtures |
+| `scripts/` | Sample generation, evaluation, and static interface checks |
+| `docs/` | Setup, methods, architecture, and development guidance |
 
-Ollama is the initial selected provider and defaults to **`qwen3:8b`**. Start Ollama and refresh to choose among installed text models. If the default is absent, install it with `ollama pull qwen3:8b`. Analytic Brain never downloads models automatically. Local Ollama analysis works without cloud permission and has no cloud fallback.
-
-| Connection | Environment key | Optional default model | API |
-| --- | --- | --- | --- |
-| Ollama | No key; `OLLAMA_BASE_URL` optionally changes the loopback address | `OLLAMA_MODEL`, initially `qwen3:8b` | Native local chat |
-| OpenAI | `OPENAI_API_KEY` | `OPENAI_MODEL` | Responses |
-| Gemini | `GEMINI_API_KEY` | `GEMINI_MODEL` | OpenAI-compatible chat |
-| Groq | `GROQ_API_KEY` | `GROQ_MODEL` | OpenAI-compatible chat |
-
-Saved defaults and keys apply to new runs; each run pins the connection settings it starts with. Secrets are written atomically to `.reviso/connections.json` with mode `0600`. This file is local and excluded from Git, but is **not encrypted** by Analytic Brain. Saved keys never appear in API responses, reports, or browser storage. A blank key keeps the configured key; **Remove saved key** removes the saved copy while preserving any environment configuration. `.env.example` lists optional environment variables; `.env` is not loaded automatically.
-
-Enable cloud analysis in **Dataset setup** before using OpenAI, Gemini, or Groq with dataset evidence. **Evidence only** remains available as a separate mode with no model calls.
-
-The Gemini and Groq connection cards let you record a free or paid API-account tier. The same adapter handles either tier. This label does not enforce a free budget, change your provider's billing, or establish that every listed model is available for free. The provider controls model access and quota. Quota failures appear in run activity without switching providers. Cloud costs remain **not priced**; local Ollama calls record no API token fee, excluding your hardware costs. Token counts come from provider responses.
-
-For optional description search, select text fields, an Ollama, OpenAI, or Gemini embedding connection, and its embedding model ID in setup. Local Ollama embeddings do not require cloud consent; cloud embeddings do. Save, generate a report, then choose **Build text index**. Groq chat can use a separate embedding connection. An embedding build is resumable and does not rebuild completed cells. The chat-model picker excludes known embedding-only models; enter the embedding model ID in the separate text-search setup.
-
-Official integration references: [OpenAI text generation](https://developers.openai.com/api/docs/guides/text), [Gemini compatibility](https://ai.google.dev/gemini-api/docs/openai), [Groq compatibility](https://console.groq.com/docs/openai), [OpenAI embeddings](https://developers.openai.com/api/reference/resources/embeddings/methods/create). Account terms, model access, and usage limits remain provider-controlled.
-
-Live model catalogs use [OpenAI models](https://developers.openai.com/api/reference/resources/models/methods/list), [Gemini models](https://ai.google.dev/api/models), [Groq models](https://console.groq.com/docs/models), and [Ollama installed models](https://docs.ollama.com/api/tags). The local default is [Qwen3 8B](https://ollama.com/library/qwen3:8b).
-
-## Choose investigation effort
-
-The investigation bar offers **Automatic**, **Low**, and **High**, plus a model-context selector. Automatic chooses low for local models, smaller model names, or contexts under 32k; capable cloud models with at least 32k use high. The context selector declares capacity; it does not prove the model supports that capacity.
-
-| Mode | Report queries | Chat tools | Output allowance |
-| --- | --- | --- | --- |
-| Low | Up to 2 | Up to 2, then a final answer | Up to 2,000 tokens, reduced for very small contexts |
-| High | Up to 6 | Up to 6, then a final answer | Up to 8,000 tokens |
-
-A report interpretation or final chat answer rejected by the evidence checks gets one additional correction call. The rejection remains visible in run activity; a second failure publishes no answer.
-
-High requires a selected context of at least 32,768 tokens and sufficient hardware/provider support. Effort changes the evidence and tool budgets for every model. Native reasoning controls are also used for recognized supported OpenAI/Gemini/Groq families and Ollama models advertising thinking capability. Local Ollama calls use stage-specific structured response formats to require citations and restrict them to available evidence. Independent validation still checks their use. The app does not request, display, or store private reasoning. Ollama receives the selected context size. Unsupported model families still receive the investigation budget without unsupported reasoning parameters. See [OpenAI reasoning](https://developers.openai.com/api/docs/guides/reasoning), [Gemini compatibility](https://ai.google.dev/gemini-api/docs/openai), [Groq reasoning](https://console.groq.com/docs/reasoning), and [Ollama chat](https://docs.ollama.com/api/chat).
-
-## Upload limits
-
-One to five complete UTF-8 CSV snapshots per dataset. Each file is capped at **20 MB, 100,000 records, 200 fields, and 20,000 characters per cell**. Empty files, binary controls, malformed CSV, inconsistent row widths, and repeated/blank headers are rejected. Source bytes are preserved; formulas are stored as data and never executed by the app. The browser validates names and sizes, and the server independently parses all content. CSV metadata is checked when supplied; metadata alone never establishes validity.
-
-Uploads use a fixed-length JSON request containing base64 CSV content, protected by the local request token and Origin/Host checks. Unsupported content types, chunked requests, oversized bodies, and stalled uploads are rejected. A partially completed multi-file import keeps completed snapshots and the remaining pending files for retry. The local server is intended for a personal workspace.
-
-## Watch an appended or overwritten file
-
-Create a dataset in the app. Its ID is available in the JSON report's `dataset_id` or the dataset response from `/api/state`. Stop the server and restart with that ID:
+## Development
 
 ```sh
-python3 -m reviso --watch /absolute/path/to/data.csv --dataset YOUR_DATASET_ID
-```
-
-The watcher waits for an unchanged file signature across two polls before reading a full snapshot. It captures both appended and replaced contents, ignores unchanged bytes, and preserves earlier copies before later overwrites. It stops after five versions with a visible capacity status. It never evicts a version. Generate a fresh report to include new captures; watching does not automatically send data to a cloud provider.
-
-Use complete snapshots, including earlier records, for an appended dataset. Watching cannot recover versions overwritten before the watcher ran, or changes overwritten again between polls. Stable-file detection is best effort; an atomic file replacement is preferable to a writer pausing halfway through a valid CSV.
-
-## Check the result
-
-```sh
-python3 -m unittest discover -s tests -v
-python3 scripts/make_demo.py
-python3 scripts/evaluate.py
-python3 scripts/evaluate_single.py
-```
-
-The sample builder writes five CSVs and an independently authored expected-change manifest to `examples/house_prices/`. Generated CSVs and the original supplied package/data are excluded from Git by default. The app has a portable generated demo, so a clean checkout still works.
-
-The single-file benchmark independently checks 12 EDA facts, including missing descriptions, field meanings, price extremes, group coverage, time coverage, and price-area association. Run `python3 scripts/evaluate_single.py --provider ollama --model qwen3:8b --effort low` for an actual report and two source-backed conversations. Traces, failures, evidence, and a standalone HTML report are saved under `outputs/`.
-
-The version evaluator checks 30 explicit expectations, including exact record movements and the injected quality signals. It writes `outputs/evaluation.json`. Those checks validate measurements; they do not grade AI explanations. For real model runs, use a configured key and:
-
-```sh
-python3 scripts/evaluate.py --provider gemini --model YOUR_MODEL_ID
-```
-
-This sends the demo evidence to that provider, generates a report and four investigative answers, and preserves their traces for review. AI semantic quality is left unscored until reviewed against the independent manifest. Failed provider requests are failures, not passing answers.
-
-To run the same experiment locally, use `python3 scripts/evaluate.py --provider ollama --model qwen3:8b`. The CLI reads environment credentials; keys saved in the app apply to app investigations.
-
-Optional Node 22 static interface checks:
-
-```sh
-node --check reviso/static/app.js
+python -m pip install -e '.[dev]'
+ruff check src scripts tests
+python -m unittest discover -s tests -v
+python scripts/evaluate.py
+python scripts/evaluate_single.py
 node scripts/check_ui.mjs
 ```
 
-Run the evaluator first to create the report fixture. The interface checks execute the actual rendering functions with that report, verify element contracts, and check escaping. They do not substitute for visual browser testing. GitHub Actions runs the Python suite, evaluator, and static checks on Python 3.9 and 3.12.
+Node 22 is needed only for the static interface checks. GitHub Actions runs the checks on Python 3.9 and 3.12 using Ubuntu 24.04.
 
-## Design
-
-```mermaid
-flowchart LR
-    A[CSV snapshots or file watcher] --> B[Immutable SQLite versions]
-    B --> C[Field profiles and measured comparisons]
-    C --> D[Setup questions and domain context]
-    D --> E[Bounded AI investigation plan]
-    E --> F[Read-only SQL and approved text search]
-    F --> G[Report with evidence references]
-    G --> H[Conversation pinned to report inputs]
-    E --> I[Local traces, usage and failures]
-    F --> I
-    H --> I
-```
-
-The measurements remain available without a model. AI plans describe observable work and are followed by bounded tool execution and interpretation. Private model reasoning is not requested or stored. Citation IDs and numeric presence are checked before generated claims are published; these guards cannot prove semantic correctness.
-
-See [architecture](docs/architecture.md), [methods and limits](docs/methods.md), and [evaluation and monitoring](docs/evaluation.md).
-
-This is an implemented first version. Larger-than-memory processing, scheduled cloud analysis, editable domain validation rules, external tracing, and automated semantic grading remain future work. Live provider and browser verification depend on the environment where it is run.
+Read the [usage guide](docs/usage.md), [architecture](docs/architecture.md), [methods and limits](docs/methods.md), [evaluation guide](docs/evaluation.md), or [development notes](docs/development.md).

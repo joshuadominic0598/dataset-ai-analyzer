@@ -6,11 +6,8 @@ import io
 import json
 from pathlib import Path
 
-from .analysis import build_report
-
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "house_prices_dataset/train/train.csv"
-
 
 def csv_bytes(columns, rows):
     output = io.StringIO(newline="")
@@ -19,18 +16,23 @@ def csv_bytes(columns, rows):
     writer.writerows(rows)
     return output.getvalue().encode()
 
-
 def fallback_rows():
     """A portable synthetic demo when the supplied private source is absent."""
     rows = []
     neighborhoods = ["North", "South", "East", "West"]
     for i in range(1, 1001):
-        rows.append({"Id": str(i), "SalePrice": str(125000 + (i * 7919) % 250000),
-                     "GrLivArea": str(850 + (i * 127) % 2200), "Neighborhood": neighborhoods[i % 4],
-                     "YearBuilt": str(1950 + i % 65), "LotArea": str(5000 + (i * 233) % 15000),
-                     "Alley": "NA" if i % 4 else "Pave"})
+        rows.append(
+            {
+                "Id": str(i),
+                "SalePrice": str(125000 + (i * 7919) % 250000),
+                "GrLivArea": str(850 + (i * 127) % 2200),
+                "Neighborhood": neighborhoods[i % 4],
+                "YearBuilt": str(1950 + i % 65),
+                "LotArea": str(5000 + (i * 233) % 15000),
+                "Alley": "NA" if i % 4 else "Pave",
+            }
+        )
     return list(rows[0]), rows
-
 
 def fixtures(source=SOURCE):
     if source and Path(source).exists():
@@ -43,9 +45,11 @@ def fixtures(source=SOURCE):
         source_name = "Fully synthetic housing sample; no source dataset required."
     columns = columns + ["ListingNotes"]
     for row in original:
-        row["ListingNotes"] = ("Synthetic example listing. " +
-            ("A quiet family home near parks and schools, with room for a garden and a flexible living space." if int(row["Id"]) % 2 else
-             "A compact city property close to transit and local shops, suited to convenient everyday living."))
+        row["ListingNotes"] = "Synthetic example listing. " + (
+            "A quiet family home near parks and schools, with room for a garden and a flexible living space."
+            if int(row["Id"]) % 2
+            else "A compact city property close to transit and local shops, suited to convenient everyday living."
+        )
     lookup = {r["Id"]: r for r in original}
     v1 = copy.deepcopy(original[:600])
     v2 = copy.deepcopy(original[:660])
@@ -86,17 +90,48 @@ def fixtures(source=SOURCE):
         row["SaleAmount"] = f"{float(row.pop('SalePrice')):.1f}"
         row["SourceBatch"] = "Partner import"
         v5.append(row)
-    for row in v5[:len(v4)]:
+    for row in v5[: len(v4)]:
         row["SourceBatch"] = "Existing portfolio"
     manifest = {
         "source": source_name,
         "versions": [600, 660, 702, 700, 1000],
         "cases": [
-            {"pair": [1, 2], "checks": {"movement.added": 60, "movement.removed": 0, "movement.changed": 0, "movement.unchanged": 600, "movement.exact": True}},
-            {"pair": [2, 3], "checks": {"movement.added": 50, "movement.removed": 10, "movement.changed": 62, "movement.unchanged": 586,
-                                             "movement.exact": False, "movement.ambiguous_identities": 2, "movement.duplicate_identity_rows_after": 4}},
-            {"pair": [3, 4], "checks": {"after": 700, "movement.changed": 62, "movement.exact": False}},
-            {"pair": [4, 5], "checks": {"movement.added": 300, "movement.removed": 0, "movement.changed": 0, "movement.unchanged": 700, "movement.exact": True}},
+            {
+                "pair": [1, 2],
+                "checks": {
+                    "movement.added": 60,
+                    "movement.removed": 0,
+                    "movement.changed": 0,
+                    "movement.unchanged": 600,
+                    "movement.exact": True,
+                },
+            },
+            {
+                "pair": [2, 3],
+                "checks": {
+                    "movement.added": 50,
+                    "movement.removed": 10,
+                    "movement.changed": 62,
+                    "movement.unchanged": 586,
+                    "movement.exact": False,
+                    "movement.ambiguous_identities": 2,
+                    "movement.duplicate_identity_rows_after": 4,
+                },
+            },
+            {
+                "pair": [3, 4],
+                "checks": {"after": 700, "movement.changed": 62, "movement.exact": False},
+            },
+            {
+                "pair": [4, 5],
+                "checks": {
+                    "movement.added": 300,
+                    "movement.removed": 0,
+                    "movement.changed": 0,
+                    "movement.unchanged": 700,
+                    "movement.exact": True,
+                },
+            },
         ],
         "expected_signals": [
             {"from": 2, "to": 3, "kind": "missing_values", "column": "SalePrice", "after": 40},
@@ -110,24 +145,36 @@ def fixtures(source=SOURCE):
             {"from": 4, "to": 5, "kind": "record_count", "after": 1000},
             {"from": 4, "to": 5, "kind": "schema"},
         ],
-        "notes": ["40 sale prices blanked; 12 records given extreme prices and living areas; 10 neighborhood labels altered.",
-                  "V3 includes 50 new IDs, 10 removals, and two repeated identities. Ambiguous record counts are intentionally incomplete.",
-                  "V4 repairs those values, removes repeated identities, renames SalePrice to SaleAmount, and writes prices as decimals.",
-                  "V5 adds 300 records and SourceBatch. Existing records remain unchanged on shared fields."]}
-    snapshots = [("01 · Original", csv_bytes(columns, v1)), ("02 · New listings", csv_bytes(columns, v2)),
-                 ("03 · Problematic import", csv_bytes(columns, v3)), ("04 · Repairs and field rename", csv_bytes(v4_columns, v4)),
-                 ("05 · Partner expansion", csv_bytes(v4_columns + ["SourceBatch"], v5))]
+        "notes": [
+            "40 sale prices blanked; 12 records given extreme prices and living areas; 10 neighborhood labels altered.",
+            "V3 includes 50 new IDs, 10 removals, and two repeated identities. Ambiguous record counts are intentionally incomplete.",
+            "V4 repairs those values, removes repeated identities, renames SalePrice to SaleAmount, and writes prices as decimals.",
+            "V5 adds 300 records and SourceBatch. Existing records remain unchanged on shared fields.",
+        ],
+    }
+    snapshots = [
+        ("01 · Original", csv_bytes(columns, v1)),
+        ("02 · New listings", csv_bytes(columns, v2)),
+        ("03 · Problematic import", csv_bytes(columns, v3)),
+        ("04 · Repairs and field rename", csv_bytes(v4_columns, v4)),
+        ("05 · Partner expansion", csv_bytes(v4_columns + ["SourceBatch"], v5)),
+    ]
     return snapshots, manifest
-
 
 def load_demo(store, dataset_id):
     snapshots, manifest = fixtures()
     for label, content in snapshots:
         store.ingest(dataset_id, label, content)
-    store.configure(dataset_id, {"identity": ["Id"], "important": ["SalePrice", "SaleAmount", "GrLivArea"],
-        "setup_complete": True, "context": "Housing portfolio. Sudden extreme prices or living areas warrant source verification. Empty prices prevent valuation. ListingNotes are synthetic demonstration text."})
+    store.configure(
+        dataset_id,
+        {
+            "identity": ["Id"],
+            "important": ["SalePrice", "SaleAmount", "GrLivArea"],
+            "setup_complete": True,
+            "context": "Housing portfolio. Sudden extreme prices or living areas warrant source verification. Empty prices prevent valuation. ListingNotes are synthetic demonstration text.",
+        },
+    )
     return manifest
-
 
 def evaluate(report, manifest):
     checks = []
@@ -137,10 +184,34 @@ def evaluate(report, manifest):
             actual = pair
             for part in path.split("."):
                 actual = actual.get(part) if isinstance(actual, dict) else None
-            checks.append({"case": f"V{case['pair'][0]}→V{case['pair'][1]} {path}", "expected": expected, "actual": actual, "passed": actual == expected})
+            checks.append(
+                {
+                    "case": f"V{case['pair'][0]}→V{case['pair'][1]} {path}",
+                    "expected": expected,
+                    "actual": actual,
+                    "passed": actual == expected,
+                }
+            )
     for signal in manifest["expected_signals"]:
-        matches = [f for f in report["findings"] if all(f.get(k) == v for k, v in signal.items() if k != "after")]
-        passed = bool(matches) and ("after" not in signal or any(f["metrics"].get("after") == signal["after"] for f in matches))
-        checks.append({"case": "signal " + json.dumps(signal), "passed": passed, "matched_evidence": [f["id"] for f in matches]})
-    return {"passed": sum(c["passed"] for c in checks), "total": len(checks), "checks": checks,
-            "scope": "Exact record counts and expected signal presence. This does not grade AI interpretation or establish the absence of false positives."}
+        matches = [
+            f
+            for f in report["findings"]
+            if all(f.get(k) == v for k, v in signal.items() if k != "after")
+        ]
+        passed = bool(matches) and (
+            "after" not in signal
+            or any(f["metrics"].get("after") == signal["after"] for f in matches)
+        )
+        checks.append(
+            {
+                "case": "signal " + json.dumps(signal),
+                "passed": passed,
+                "matched_evidence": [f["id"] for f in matches],
+            }
+        )
+    return {
+        "passed": sum(c["passed"] for c in checks),
+        "total": len(checks),
+        "checks": checks,
+        "scope": "Exact record counts and expected signal presence. This does not grade AI interpretation or establish the absence of false positives.",
+    }

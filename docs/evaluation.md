@@ -4,7 +4,7 @@ Analytic Brain keeps measurement correctness, model execution, evidence checks, 
 
 ## Independent expected changes
 
-`reviso/demo.py` creates controlled changes to the supplied house-price sample, with a generated-data fallback for a clean checkout. The expected-change manifest is authored alongside the mutations rather than derived from detector output.
+`src/reviso/demo.py` creates controlled changes to the supplied house-price sample, with a generated-data fallback for a clean checkout. The expected-change manifest is authored alongside the mutations rather than derived from detector output.
 
 | Transition | Injected changes |
 | --- | --- |
@@ -41,7 +41,7 @@ For a useful comparison, hold source snapshots, configuration, manifest, prompt 
 
 Run activity shows the latest 50 runs in the selected dataset, including report generation, chat, SQL, and indexing. Every run has a durable ID and lifecycle state. A server restart marks unfinished runs as failed rather than leaving them permanently running.
 
-Events record observable actions: measurements, model calls, plans, SQL and results, text indexing progress, semantic search results, reference checks through successful completion, publication, and failure. Source fingerprints and the shared prompt hash make the inputs identifiable. Prompt definitions live in `reviso/agent.py`; private reasoning is neither requested nor stored.
+Events record observable actions: measurements, model calls, plans, SQL and results, text indexing progress, semantic search results, reference checks through successful completion, publication, and failure. Source fingerprints and the shared prompt hash make the inputs identifiable. Prompt definitions live in `src/reviso/agent/prompts.py`; private reasoning is neither requested nor stored.
 
 Provider-reported token counts are retained without inventing usage when absent. Failed HTTP attempts have failure events. Cost remains unknown until pricing and account tier are explicitly implemented; choosing Gemini or Groq does not make an inferred zero-cost claim. No telemetry is sent to an external monitoring service.
 

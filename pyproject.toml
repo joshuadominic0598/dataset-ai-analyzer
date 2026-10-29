@@ -9,12 +9,27 @@ description = "Explore datasets and compare versions with an evidence-backed AI 
 requires-python = ">=3.9"
 dependencies = []
 
+[project.optional-dependencies]
+dev = ["ruff==0.14.14"]
+
 [project.scripts]
 analytic-brain = "reviso.server:main"
 reviso = "reviso.server:main"
 
 [tool.setuptools.packages.find]
+where = ["src"]
 include = ["reviso*"]
 
 [tool.setuptools.package-data]
-reviso = ["static/*"]
+reviso = ["static/*", "server/templates/*"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["reviso", "support"]
+lines-after-imports = 1
