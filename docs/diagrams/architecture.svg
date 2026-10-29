@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100" role="img" aria-labelledby="title description">
+<title id="title">Analytic Brain architecture</title>
+<desc id="description">One to five CSV snapshots become immutable local SQLite inputs and measured evidence. A bounded AI analyst uses read-only SQL, field profiles, and optional text search with Ollama, Gemini, OpenAI, or Groq. Reports, conversations, optional vectors, and run traces stay in SQLite. Cloud analysis and text embeddings require the appropriate user choices.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker>
+<marker id="arrow-start" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10 0L0 5L10 10z" fill="context-stroke"/></marker>
+</defs>
+<rect width="1600" height="1100" fill="#0b0b0e"/>
+<g font-family="Arial, Helvetica, sans-serif">
+<text x="56" y="34" font-size="13" fill="#9399a7" font-weight="650" text-anchor="start">DATASETS / ANALYST TOOLS / MODELS / EVIDENCE</text>
+<svg xmlns="http://www.w3.org/2000/svg" x="56" y="60" width="49" height="49" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="14" fill="#10223b"/><g stroke="#62acff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M24 13c-3-6-12-3-12 3-6 1-7 9-3 12-2 6 4 10 8 8 2 4 7 3 7-1V13Zm0 0c3-6 12-3 12 3 6 1 7 9 3 12 2 6-4 10-8 8-2 4-7 3-7-1V13Z"/><path d="M16 16c-2 3 0 6 3 6m-9 6c2-2 5-1 6 1m1 7c3-1 3-5 1-7m14-13c2 3 0 6-3 6m9 6c-2-2-5-1-6 1m-1 7c-3-1-3-5-1-7"/></g></svg>
+<text x="120" y="98" font-size="37" fill="#f5f2ee" font-weight="700" text-anchor="start">Analytic Brain · Architecture</text>
+<rect x="1245" y="62" width="299" height="45" rx="9" fill="#12151b" stroke="#343b48" stroke-width="1.5"/>
+<text x="1394" y="91" font-size="18" fill="#afc9ec" font-weight="600" text-anchor="middle">Local Python + SQLite</text>
+<rect x="36" y="142" width="1528" height="218" rx="14" fill="#111216" stroke="#303136" stroke-width="1.5"/>
+<text x="56" y="173" font-size="14" fill="#ff9858" font-weight="700" text-anchor="start">01  LOCAL DATA FOUNDATION</text>
+<rect x="56" y="198" width="292" height="130" rx="12" fill="#191b22" stroke="#3b3e47" stroke-width="1.5"/>
+<g transform="translate(74,215)" fill="none" stroke="#ff9858" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 2h12l6 6v18H3zM15 2v7h6M6 14h12M6 19h12M10 13v10"/></g>
+<text x="114" y="236" font-size="21" fill="#f5f2ee" font-weight="650" text-anchor="start">CSV snapshots</text>
+<text x="76" y="271" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">One file or 2–5 versions</text>
+<text x="76" y="295" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Upload or stable-file watcher</text>
+<rect x="402" y="198" width="314" height="130" rx="12" fill="#191b22" stroke="#3b3e47" stroke-width="1.5"/>
+<g transform="translate(420,215)" fill="none" stroke="#ff9858" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><rect x="2" y="3" width="23" height="23" rx="5"/><path d="m7 14 5 5 8-10"/></g>
+<text x="460" y="236" font-size="21" fill="#f5f2ee" font-weight="650" text-anchor="start">Validate + clarify</text>
+<text x="422" y="271" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">UTF-8, headers, and file limits</text>
+<text x="422" y="295" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Goals, row meaning, field roles</text>
+<rect x="770" y="198" width="330" height="130" rx="12" fill="#191b22" stroke="#3b3e47" stroke-width="1.5"/>
+<g transform="translate(788,215)" fill="none" stroke="#ff9858" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><ellipse cx="14" cy="5" rx="12" ry="4"/><path d="M2 5v17c0 6 24 6 24 0V5M2 13c0 6 24 6 24 0"/></g>
+<text x="828" y="236" font-size="21" fill="#f5f2ee" font-weight="650" text-anchor="start">SQLite snapshots</text>
+<text x="790" y="271" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Original bytes + fingerprints</text>
+<text x="790" y="295" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Typed tables for read-only SQL</text>
+<rect x="1154" y="198" width="390" height="130" rx="12" fill="#191b22" stroke="#3b3e47" stroke-width="1.5"/>
+<g transform="translate(1172,215)" fill="none" stroke="#ff9858" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M2 3v23h25M7 21v-7M14 21V8M21 21V3"/></g>
+<text x="1212" y="236" font-size="21" fill="#f5f2ee" font-weight="650" text-anchor="start">Measured evidence</text>
+<text x="1174" y="271" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Fields, records, groups, and time</text>
+<text x="1174" y="295" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Version changes when available</text>
+<path d="M348 264H402" fill="none" stroke="#ff9858" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="375.0" y="251" font-size="12" fill="#ffad78" font-weight="500" text-anchor="middle">check</text>
+<path d="M716 264H770" fill="none" stroke="#ff9858" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="743.0" y="251" font-size="12" fill="#ffad78" font-weight="500" text-anchor="middle">save</text>
+<path d="M1100 264H1154" fill="none" stroke="#ff9858" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1127.0" y="251" font-size="12" fill="#ffad78" font-weight="500" text-anchor="middle">measure</text>
+<text x="56" y="421" font-size="14" fill="#73b4ff" font-weight="700" text-anchor="start">02  AGENT INVESTIGATION + MODEL CALLS</text>
+<rect x="56" y="474" width="340" height="180" rx="12" fill="#191b22" stroke="#3b3e47" stroke-width="1.5"/>
+<g transform="translate(74,491)" fill="none" stroke="#73b4ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M3 3h23v18H12l-8 6v-6H3zM8 9h13M8 15h9"/></g>
+<text x="114" y="512" font-size="21" fill="#f5f2ee" font-weight="650" text-anchor="start">Web app + Ask Agent</text>
+<text x="76" y="547" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Setup, reports, and conversation</text>
+<text x="76" y="571" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Questions about data and change</text>
+<text x="76" y="631" font-size="14" fill="#9399a7" font-weight="400" text-anchor="start">HTML + CSS + JavaScript</text>
+<rect x="550" y="456" width="520" height="235" rx="13" fill="#17202c" stroke="#69a8f0" stroke-width="1.5"/>
+<g transform="translate(568,476)" fill="none" stroke="#73b4ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M14 0 8 10H0l10 7-4 11 10-8 10 5-4-11 6-8-11 2z"/></g>
+<text x="608" y="496" font-size="25" fill="#f5f2ee" font-weight="700" text-anchor="start">Analyst workflow</text>
+<text x="568" y="532" font-size="18" fill="#ccd9e9" font-weight="400" text-anchor="start">Clarify → plan → tools → evidence-linked answer</text>
+<rect x="568" y="557" width="148" height="76" rx="7" fill="#101721" stroke="#34465c" stroke-width="1.5"/>
+<text x="581" y="584" font-size="17" fill="#e6edf8" font-weight="650" text-anchor="start">SQL</text>
+<text x="581" y="612" font-size="14" fill="#a9bbd0" font-weight="400" text-anchor="start">Read-only queries</text>
+<rect x="730" y="557" width="148" height="76" rx="7" fill="#101721" stroke="#34465c" stroke-width="1.5"/>
+<text x="743" y="584" font-size="17" fill="#e6edf8" font-weight="650" text-anchor="start">Field profiles</text>
+<text x="743" y="612" font-size="14" fill="#a9bbd0" font-weight="400" text-anchor="start">Rows + metrics</text>
+<rect x="892" y="557" width="160" height="76" rx="7" fill="#101721" stroke="#34465c" stroke-width="1.5"/>
+<text x="905" y="584" font-size="17" fill="#e6edf8" font-weight="650" text-anchor="start">Text search</text>
+<text x="905" y="612" font-size="14" fill="#a9bbd0" font-weight="400" text-anchor="start">Opt-in only</text>
+<text x="568" y="666" font-size="16" fill="#afc7e4" font-weight="400" text-anchor="start">Low / high effort · references + numeric checks</text>
+<rect x="1190" y="456" width="354" height="235" rx="12" fill="#191b22" stroke="#3b3e47" stroke-width="1.5"/>
+<g transform="translate(1208,473)" fill="none" stroke="#73b4ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><circle cx="6" cy="6" r="4"/><circle cx="23" cy="6" r="4"/><circle cx="14" cy="24" r="4"/><path d="M10 6h9M8 10l4 10M21 10l-5 10"/></g>
+<text x="1248" y="494" font-size="21" fill="#f5f2ee" font-weight="650" text-anchor="start">Model connections</text>
+<text x="1210" y="532" font-size="20" fill="#b5d7ff" font-weight="650" text-anchor="start">Ollama · Qwen 8B default</text>
+<text x="1210" y="556" font-size="16" fill="#b4bbc9" font-weight="400" text-anchor="start">Installed models · local inference</text>
+<text x="1210" y="596" font-size="20" fill="#f5f2ee" font-weight="600" text-anchor="start">Gemini · OpenAI · Groq</text>
+<text x="1210" y="620" font-size="16" fill="#b4bbc9" font-weight="400" text-anchor="start">API key + dataset consent</text>
+<text x="1210" y="664" font-size="15" fill="#9399a7" font-weight="400" text-anchor="start">No silent provider fallback</text>
+<path d="M396 522H550" fill="none" stroke="#73b4ff" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="473" y="508" font-size="13" fill="#a8cfff" font-weight="500" text-anchor="middle">question + context</text>
+<path d="M550 616H396" fill="none" stroke="#73b4ff" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="473" y="638" font-size="13" fill="#a8cfff" font-weight="500" text-anchor="middle">answer + sources</text>
+<path d="M1070 526H1190" fill="none" stroke="#73b4ff" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1130" y="511" font-size="13" fill="#a8cfff" font-weight="500" text-anchor="middle">model call</text>
+<path d="M1190 616H1070" fill="none" stroke="#73b4ff" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1130" y="638" font-size="13" fill="#a8cfff" font-weight="500" text-anchor="middle">JSON reply</text>
+<path d="M920 328V456" fill="none" stroke="#ff9858" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow-start)"/>
+<text x="908" y="396" font-size="14" fill="#ffb580" font-weight="500" text-anchor="end">report-scoped SQL</text>
+<path d="M1349 328V380H1046V456" fill="none" stroke="#ff9858" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1220" y="368" font-size="14" fill="#ffb580" font-weight="500" text-anchor="middle">measured facts</text>
+<rect x="36" y="776" width="1528" height="234" rx="14" fill="#111216" stroke="#303136" stroke-width="1.5"/>
+<text x="56" y="805" font-size="14" fill="#ff9858" font-weight="700" text-anchor="start">03  REPORTS, OPTIONAL RETRIEVAL + RUN VISIBILITY</text>
+<rect x="56" y="835" width="340" height="140" rx="12" fill="#191b22" stroke="#3b3e47" stroke-width="1.5"/>
+<g transform="translate(74,852)" fill="none" stroke="#ff9858" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 1h15l6 6v20H4zM18 1v7h7M9 13h11M9 18h11M9 23h6"/></g>
+<text x="114" y="873" font-size="21" fill="#f5f2ee" font-weight="650" text-anchor="start">Reports + conversation</text>
+<text x="76" y="908" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Pinned versions + cited evidence</text>
+<text x="76" y="932" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">HTML, Markdown, and JSON</text>
+<rect x="550" y="835" width="520" height="140" rx="12" fill="#191b22" stroke="#3b3e47" stroke-width="1.5"/>
+<g transform="translate(568,852)" fill="none" stroke="#73b4ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><circle cx="11" cy="11" r="9"/><path d="m18 18 9 9M7 11h8M11 7v8"/></g>
+<text x="608" y="873" font-size="21" fill="#f5f2ee" font-weight="650" text-anchor="start">Optional description search</text>
+<text x="570" y="908" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Selected text columns → local or cloud embeddings</text>
+<text x="570" y="932" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Vectors in SQLite · no separate vector database</text>
+<rect x="1190" y="835" width="354" height="140" rx="12" fill="#191b22" stroke="#3b3e47" stroke-width="1.5"/>
+<g transform="translate(1208,852)" fill="none" stroke="#ff9858" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M2 3v23h25M7 21v-7M14 21V8M21 21V3"/></g>
+<text x="1248" y="873" font-size="21" fill="#f5f2ee" font-weight="650" text-anchor="start">Evaluation + activity</text>
+<text x="1210" y="908" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Expected facts + model contracts</text>
+<text x="1210" y="932" font-size="17" fill="#c7c8d0" font-weight="400" text-anchor="start">Traces, usage, failures, feedback</text>
+<path d="M603 691V737H226V835" fill="none" stroke="#ff9858" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="410" y="725" font-size="14" fill="#ffb580" font-weight="500" text-anchor="middle">pin sources + publish</text>
+<path d="M824 691V835" fill="none" stroke="#73b4ff" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="7 6"/>
+<text x="837" y="751" font-size="14" fill="#a8cfff" font-weight="400" text-anchor="start">selected text only</text>
+<path d="M1028 691V737H1367V835" fill="none" stroke="#ff9858" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="1220" y="725" font-size="14" fill="#ffb580" font-weight="500" text-anchor="middle">plans, tools, usage, errors</text>
+<text x="56" y="1042" font-size="16" fill="#b0b5c0" font-weight="400" text-anchor="start">All snapshots, reports, messages, optional vectors, and run records stay in the local SQLite workspace.</text>
+<text x="56" y="1072" font-size="15" fill="#9399a7" font-weight="400" text-anchor="start">Cloud calls are opt-in. Measurements are reproducible; AI interpretations still need review.</text>
+</g></svg>

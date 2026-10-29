@@ -4,6 +4,18 @@ Explore one dataset or compare up to five versions with an AI data analyst. Find
 
 The app runs locally with SQLite storage and a black-and-orange interface. Use local Ollama models (Qwen 8B by default), or connect Gemini, OpenAI, or Groq. Cloud analysis is optional.
 
+## Architecture
+
+![Analytic Brain architecture: CSV snapshots and measured evidence feed a bounded analyst with read-only SQL, optional text retrieval, four model connections, and local reports and run activity.](docs/images/architecture.png)
+
+[Explore the architecture](docs/architecture.md) · [Editable diagram](docs/diagrams/architecture.svg)
+
+## App preview
+
+The housing demo shows version comparisons, investigation controls, and the **Ask Agent** launcher.
+
+![Analytic Brain overview with five dataset versions, local model controls, record counts, and findings.](docs/images/app_overview.png)
+
 ## Run locally
 
 Python 3.9 or newer. The application has no third-party runtime dependencies.
@@ -28,6 +40,19 @@ Snapshots, reports, conversations, and saved connections stay in `.reviso/`, whi
 - Choose low or high investigation effort and a supported model context.
 - Optionally search description fields by meaning after selecting columns and a connection.
 - Inspect run activity and export HTML, Markdown, or complete JSON evidence.
+
+<details>
+<summary>See findings and the agent conversation</summary>
+
+**Findings and follow-up checks**
+
+![Findings for unusual values, missing prices, and records that cannot be matched reliably.](docs/images/findings.png)
+
+**Ask Agent with cited evidence**
+
+<img src="docs/images/agent_chat.png" alt="Ask Agent discussing changes needing attention and citing the underlying findings." width="460">
+
+</details>
 
 ## Project layout
 
