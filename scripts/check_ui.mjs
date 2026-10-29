@@ -41,7 +41,10 @@ const element = (id = "") => ({
   selectionEnd: 0,
   children: [],
   classList: { toggle() {}, add() {}, remove() {} },
-  addEventListener() {},
+  listeners: new Map(),
+  addEventListener(type, callback) {
+    this.listeners.set(type, callback);
+  },
   focus() {},
   showModal() {},
   close() {},
@@ -58,13 +61,18 @@ const element = (id = "") => ({
 const elements = new Map(ids.map((id) => [id, element(id)]));
 elements.get("provider").value = "offline";
 elements.get("pair-filter").value = "all";
+const preferences = new Map();
 const localStorage = {
-  getItem() {
-    return null;
+  getItem(key) {
+    return preferences.get(key) ?? null;
   },
-  setItem() {},
+  setItem(key, value) {
+    preferences.set(key, String(value));
+  },
 };
 const requests = [];
+let responseFor = () => ({ accepted: true });
+let responseStatus = 200;
 const context = vm.createContext({
   document: {
     getElementById: (id) => elements.get(id),
@@ -80,12 +88,15 @@ const context = vm.createContext({
   fetch: async (path, options = {}) => {
     const headers = new Headers(options.headers);
     requests.push({ path, ...options, headers });
-    return { ok: true, json: async () => ({ accepted: true }) };
+    return {
+      ok: responseStatus >= 200 && responseStatus < 300,
+      json: async () => responseFor(path, options),
+    };
   },
 });
 const testSource = source.replace(
   /initialize\(\)\.catch\(\(error\)\s*=>\s*toast\(error\.message,\s*true\)\);\s*$/,
-  "globalThis.hooks={state,api,renderReport,renderSetup,renderExplore,renderFindings,appendMessage,metricTable,resultTable,esc,renderConnections,updateConnection,setView};",
+  "globalThis.hooks={state,api,startJob,renderReport,renderSetup,renderExplore,renderFindings,appendMessage,metricTable,resultTable,esc,renderConnections,updateConnection,setView};",
 );
 vm.runInContext(testSource, context);
 const hooks = context.hooks;
@@ -249,6 +260,168 @@ assert.equal(
 assert(elements.get("stats").innerHTML.includes("Fields explored"));
 assert(elements.get("field-table").innerHTML.includes("ordinal"));
 assert(!elements.get("findings").innerHTML.includes("V1 → V1"));
+async function dispatch(id, type, value) {
+  const target = elements.get(id);
+  if (value !== undefined) target.value = value;
+  const listener = target.listeners.get(type);
+  assert(listener, `${id} must handle ${type}`);
+  await listener({ target, preventDefault() {} });
+}
+
+// The chat and investigation bar must select the same connection and model.
+await dispatch("chat-provider", "change", "ollama");
+assert.equal(elements.get("provider").value, "ollama");
+assert.equal(elements.get("chat-model-select").value, "qwen3:8b");
+assert.equal(elements.get("chat-model-picker").hidden, false);
+await dispatch("chat-model-select", "change", "__custom__");
+assert.equal(elements.get("model").hidden, false);
+assert.equal(elements.get("chat-custom-model").hidden, false);
+await dispatch("chat-model", "input", "local-custom:8b");
+assert.equal(elements.get("model").value, "local-custom:8b");
+assert.equal(preferences.get("reviso-model-ollama"), "local-custom:8b");
+await dispatch("model", "input", "main-custom:8b");
+assert.equal(elements.get("chat-model").value, "main-custom:8b");
+await dispatch("provider", "change", "groq");
+assert.equal(elements.get("chat-provider").value, "groq");
+await dispatch("model-select", "change", "llama-test");
+assert.equal(elements.get("chat-model-select").value, "llama-test");
+await dispatch("chat-provider", "change", "offline");
+assert.equal(elements.get("provider").value, "offline");
+assert.equal(elements.get("chat-model-picker").hidden, true);
+assert.equal(elements.get("chat-custom-model").hidden, true);
+assert.equal(elements.get("model").value, "");
+
+// Saving a connection makes its new default available inside an already-open chat.
+await dispatch("chat-provider", "change", "ollama");
+const savedGemini = {
+  ...hooks.state.connections.find((c) => c.id === "gemini"),
+  configured: true,
+  model: "gemini-new-model",
+  credential_source: "saved",
+};
+responseFor = () => ({
+  connections: hooks.state.connections.map((c) =>
+    c.id === "gemini" ? savedGemini : c,
+  ),
+});
+const fields = Object.fromEntries(
+  Object.entries({
+    api_key: "fake-connection-test-key",
+    model: "gemini-new-model",
+    tier: "free",
+  }).map(([name, value]) => [name, { value }]),
+);
+const form = {
+  dataset: { connection: "gemini" },
+  elements: { namedItem: (name) => fields[name] },
+  querySelector: () => ({}),
+};
+elements.set("connection-status-gemini", element("connection-status-gemini"));
+await elements.get("connection-cards").listeners.get("submit")({
+  target: { closest: () => form },
+  preventDefault() {},
+});
+assert.equal(fields.api_key.value, "");
+assert(!Array.from(preferences.values()).includes("fake-connection-test-key"));
+assert.equal(
+  elements.get("chat-provider").value,
+  "ollama",
+  "Saving another provider must not silently switch chat",
+);
+await dispatch("chat-provider", "change", "gemini");
+assert.equal(elements.get("model").value, "gemini-new-model");
+assert.equal(elements.get("chat-model-select").value, "gemini-new-model");
+assert(
+  !elements.get("chat-provider").innerHTML.includes("gemini · add API key"),
+);
+
+// Model refresh uses the selected chat connection and preserves selection during loading.
+let finishRefresh;
+responseFor = () =>
+  new Promise((resolve) => {
+    finishRefresh = resolve;
+  });
+const refreshing = dispatch("chat-refresh-models", "click");
+while (!finishRefresh) await Promise.resolve();
+assert.equal(elements.get("chat-refresh-models").disabled, true);
+assert.equal(elements.get("refresh-models").disabled, true);
+finishRefresh({
+  provider: "gemini",
+  models: [
+    { id: "gemini-new-model", label: "Saved Gemini" },
+    { id: "gemini-second-model", label: "Another Gemini" },
+  ],
+  note: "Test catalog",
+});
+await refreshing;
+assert.equal(elements.get("chat-refresh-models").disabled, false);
+assert(
+  elements.get("chat-model-select").innerHTML.includes("gemini-second-model"),
+);
+assert.equal(
+  JSON.parse(
+    requests.findLast((r) => r.path === "/api/connections/models").body,
+  ).provider,
+  "gemini",
+);
+await dispatch("chat-model-select", "change", "gemini-second-model");
+assert.equal(elements.get("model").value, "gemini-second-model");
+
+// A chat job uses the selected connection, retains cloud consent, and pins its controls until completion.
+hooks.state.id = single.dataset_id;
+hooks.state.data.dataset.config.cloud_allowed = false;
+const beforeDenied = requests.length;
+await assert.rejects(
+  hooks.startJob("chat", "Inspect this dataset"),
+  /permission/,
+);
+assert.equal(requests.length, beforeDenied);
+hooks.state.data.dataset.config.cloud_allowed = true;
+hooks.updateConnection();
+assert(elements.get("chat-connection-note").textContent.includes("new report"));
+hooks.state.data.report.config.cloud_allowed = true;
+hooks.updateConnection();
+let finishChat;
+responseFor = (path) =>
+  path === "/api/chat"
+    ? new Promise((resolve) => {
+        finishChat = resolve;
+      })
+    : {
+        id: "chat-run",
+        status: "completed",
+        payload: {
+          events: [],
+          result: { answer: "The evidence is available.", evidence: {} },
+        },
+      };
+const chatting = hooks.startJob("chat", "Inspect this dataset");
+while (!finishChat) await Promise.resolve();
+for (const id of [
+  "provider",
+  "model-select",
+  "chat-provider",
+  "chat-model-select",
+  "chat-model",
+  "chat-manage-connections",
+])
+  assert.equal(elements.get(id).disabled, true, id);
+finishChat({ run_id: "chat-run" });
+await chatting;
+const request = JSON.parse(
+  requests.findLast((r) => r.path === "/api/chat").body,
+);
+assert.equal(request.provider, "gemini");
+assert.equal(request.model, "gemini-second-model");
+assert.equal(elements.get("chat-provider").disabled, false);
+responseStatus = 400;
+responseFor = () => ({ error: "Connection rejected" });
+await assert.rejects(hooks.startJob("chat", "Retry"), /Connection rejected/);
+assert.equal(hooks.state.busy, false);
+assert.equal(elements.get("chat-provider").disabled, false);
+assert.equal(elements.get("chat-refresh-models").disabled, false);
+responseStatus = 200;
+
 console.log(
   "Static UI contracts and real-report renderer checks passed. No browser visual checks were performed.",
 );

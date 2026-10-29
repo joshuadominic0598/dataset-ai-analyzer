@@ -42,6 +42,8 @@ The app stores snapshots, reports, conversations, and operational traces in `.re
 
 Open **Models** in the sidebar to configure four connections. Save an API key for a cloud provider or use its server environment variable. Choose **Refresh models** to load the provider's current text-model catalog, then select a model in the investigation bar. A custom model ID remains available for models the catalog does not classify. Connections can be configured before importing a dataset.
 
+**Ask Agent** has its own **Connection** and **Model** selectors. Connections saved in **Models** become available in the chat selector immediately. Choose a listed model or **Custom model ID**, use **Models** in the chat panel to refresh its catalog, or open **Manage connections** to add or update provider settings. Chat and the investigation bar share the selection; changes apply to the next request. Selection is locked while an investigation runs. Cloud analysis still requires dataset permission.
+
 Ollama is the initial selected provider and defaults to **`qwen3:8b`**. Start Ollama and refresh to choose among installed text models. If the default is absent, install it with `ollama pull qwen3:8b`. Analytic Brain never downloads models automatically. Local Ollama analysis works without cloud permission and has no cloud fallback.
 
 | Connection | Environment key | Optional default model | API |

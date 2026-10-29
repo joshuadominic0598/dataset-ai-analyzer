@@ -3134,3 +3134,54 @@ dialog p,
 .chat-panel .message {
   font-size: 13px;
 }
+.chat-connection-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 8px 10px;
+  padding: 12px 19px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.chat-connection-controls label {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  min-width: 0;
+}
+.chat-connection-controls select,
+.chat-connection-controls input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  font-size: 12px;
+  background: var(--paper);
+  border-color: var(--control-border);
+  text-overflow: ellipsis;
+}
+.chat-custom-model,
+.chat-connection-actions,
+.chat-connection-note {
+  grid-column: 1 / -1;
+}
+.chat-connection-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.chat-connection-actions .text-button {
+  font-size: 11px;
+}
+.chat-connection-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.chat-messages {
+  min-height: 0;
+}
+.chat-panel form {
+  flex-shrink: 0;
+}

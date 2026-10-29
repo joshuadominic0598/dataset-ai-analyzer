@@ -34,6 +34,7 @@ const state = {
   severity: "all",
   pending: [],
   busy: false,
+  refreshingModels: false,
   lastChatRun: null,
 };
 let toastTimer;
@@ -209,6 +210,7 @@ function updateConnection() {
         ? "Ollama · local model"
         : `${provider} · cloud model`;
   renderModelChoices();
+  renderChatConnection();
 }
 
 function modelOptions(provider, chosen) {
@@ -256,6 +258,90 @@ function renderModelChoices() {
   $("model").hidden = !custom;
 }
 
+function renderChatConnection() {
+  const provider = $("provider").value;
+  const connection = state.connections.find((item) => item.id === provider);
+  $("chat-provider").innerHTML =
+    state.connections
+      .map(
+        (item) =>
+          `<option value="${esc(item.id)}">${esc(item.name)}${item.local ? " · local" : item.configured ? "" : " · add API key"}</option>`,
+      )
+      .join("") + '<option value="offline">Evidence only · no model</option>';
+  $("chat-provider").value = provider;
+  const offline = provider === "offline";
+  const custom = !offline && $("model-select").value === "__custom__";
+  $("chat-model-picker").hidden = offline;
+  $("chat-refresh-models").hidden = offline;
+  $("chat-custom-model").hidden = !custom;
+  $("chat-model-select").innerHTML = offline
+    ? ""
+    : modelOptions(provider, $("model").value);
+  $("chat-model-select").value = custom ? "__custom__" : $("model").value;
+  $("chat-model").value = $("model").value;
+  $("chat-connection-note").textContent = offline
+    ? "Measured evidence lookup. No model requests."
+    : provider === "ollama"
+      ? "Local model · selection also applies to the investigation bar."
+      : !connection?.configured
+        ? "Add this provider's API key in Manage connections."
+        : !ds()?.config.cloud_allowed
+          ? "Cloud analysis needs permission in Dataset setup."
+          : report() && !report().config.cloud_allowed
+            ? "Generate a new report to apply the cloud permission you enabled."
+            : "Cloud model · your provider's access and billing apply.";
+  updateConnectionControls();
+}
+
+function selectProvider(provider) {
+  if (state.busy) return;
+  $("provider").value = provider;
+  if (!localStorage.getItem("reviso-context"))
+    $("context-window").value = provider === "ollama" ? "16384" : "32768";
+  $("model").value = "";
+  $("model-select").value = "";
+  localStorage.setItem("reviso-provider", provider);
+  updateConnection();
+}
+
+function selectModel(choice, source = "model-select") {
+  if (state.busy) return;
+  $("model-select").value = choice;
+  const custom = choice === "__custom__";
+  $("model").hidden = !custom;
+  $("model").value = custom ? "" : choice;
+  if (!custom)
+    localStorage.setItem("reviso-model-" + $("provider").value, choice);
+  renderChatConnection();
+  if (custom)
+    $(source === "chat-model-select" ? "chat-model" : "model").focus();
+}
+
+function changeCustomModel(source) {
+  if (state.busy) return;
+  $("model").value = $(source).value;
+  localStorage.setItem(
+    "reviso-model-" + $("provider").value,
+    $("model").value.trim(),
+  );
+  renderChatConnection();
+}
+
+function updateConnectionControls() {
+  for (const id of [
+    "provider",
+    "model-select",
+    "model",
+    "chat-provider",
+    "chat-model-select",
+    "chat-model",
+    "chat-manage-connections",
+  ])
+    $(id).disabled = state.busy;
+  for (const id of ["refresh-models", "chat-refresh-models"])
+    $(id).disabled = state.busy || state.refreshingModels;
+}
+
 function renderConnections() {
   $("connection-cards").innerHTML = state.connections
     .map((c) => {
@@ -278,14 +364,18 @@ function renderConnections() {
 }
 
 async function refreshModels(provider = $("provider").value) {
-  const button = $("refresh-models"),
-    status = $("connection-status-" + provider);
-  button.disabled = true;
+  if (state.busy || state.refreshingModels) return;
+  const status = $("connection-status-" + provider);
+  state.refreshingModels = true;
+  updateConnectionControls();
   if (status) status.textContent = "Loading models from " + provider + "…";
   try {
     const catalog = await api("/api/connections/models", { provider });
     state.catalogs[provider] = catalog;
-    if ($("provider").value === provider) renderModelChoices();
+    if ($("provider").value === provider) {
+      renderModelChoices();
+      renderChatConnection();
+    }
     const list = $("model-list-" + provider);
     if (list)
       list.innerHTML = catalog.models
@@ -303,7 +393,8 @@ async function refreshModels(provider = $("provider").value) {
     if (status) status.textContent = error.message;
     throw error;
   } finally {
-    button.disabled = false;
+    state.refreshingModels = false;
+    updateConnectionControls();
   }
 }
 
@@ -343,6 +434,7 @@ async function saveConnection(event) {
       );
   $("connection-status-" + provider).textContent =
     "Connection saved. Refresh models to check availability.";
+  renderChatConnection();
   toast("Connection saved locally.");
 }
 
@@ -901,16 +993,16 @@ async function startJob(kind, question = "") {
     throw new Error(
       "Select a supported model context of 32k or more for high effort.",
     );
-  const { run_id } = await api("/api/" + kind, {
-    dataset: id,
-    provider,
-    model,
-    question,
-    investigation,
-  });
   state.busy = true;
   setBusy(true);
   try {
+    const { run_id } = await api("/api/" + kind, {
+      dataset: id,
+      provider,
+      model,
+      question,
+      investigation,
+    });
     const run = await waitForRun(run_id, id);
     if (run.status === "failed")
       throw new Error(run.payload.error || "Investigation failed.");
@@ -940,6 +1032,7 @@ async function startJob(kind, question = "") {
 }
 
 function setBusy(busy) {
+  updateConnectionControls();
   $("progress-panel").hidden = !busy;
   $("generate-report").disabled = busy;
   $("chat-send").disabled = busy;
@@ -1186,33 +1279,30 @@ $("effort").addEventListener("change", () =>
 $("context-window").addEventListener("change", () =>
   localStorage.setItem("reviso-context", $("context-window").value),
 );
-$("provider").addEventListener("change", () => {
-  if (!localStorage.getItem("reviso-context"))
-    $("context-window").value =
-      $("provider").value === "ollama" ? "16384" : "32768";
-  $("model").value = "";
-  $("model-select").value = "";
-  localStorage.setItem("reviso-provider", $("provider").value);
-  updateConnection();
-});
-$("model-select").addEventListener("change", () => {
-  const choice = $("model-select").value;
-  const custom = choice === "__custom__";
-  $("model").hidden = !custom;
-  if (custom) {
-    $("model").value = "";
-    $("model").focus();
-  } else {
-    $("model").value = choice;
-    localStorage.setItem("reviso-model-" + $("provider").value, choice);
-  }
-});
-$("model").addEventListener("input", () =>
-  localStorage.setItem(
-    "reviso-model-" + $("provider").value,
-    $("model").value.trim(),
-  ),
+$("provider").addEventListener("change", () =>
+  selectProvider($("provider").value),
 );
+$("chat-provider").addEventListener("change", () =>
+  selectProvider($("chat-provider").value),
+);
+$("model-select").addEventListener("change", () =>
+  selectModel($("model-select").value),
+);
+$("chat-model-select").addEventListener("change", () =>
+  selectModel($("chat-model-select").value, "chat-model-select"),
+);
+$("model").addEventListener("input", () => changeCustomModel("model"));
+$("chat-model").addEventListener("input", () =>
+  changeCustomModel("chat-model"),
+);
+$("chat-refresh-models").addEventListener(
+  "click",
+  runAction(() => refreshModels()),
+);
+$("chat-manage-connections").addEventListener("click", () => {
+  closeChat();
+  setView("connections");
+});
 $("refresh-models").addEventListener(
   "click",
   runAction(() => refreshModels()),

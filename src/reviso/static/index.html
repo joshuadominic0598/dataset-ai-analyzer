@@ -708,6 +708,46 @@
       <div id="chat-context" class="chat-context">
         Upload a CSV, then ask your analyst a question.
       </div>
+      <div class="chat-connection-controls" aria-label="Agent connection">
+        <label for="chat-provider"
+          >Connection
+          <select id="chat-provider"></select>
+        </label>
+        <label id="chat-model-picker" for="chat-model-select"
+          >Model
+          <select id="chat-model-select"></select>
+        </label>
+        <label
+          id="chat-custom-model"
+          class="chat-custom-model"
+          for="chat-model"
+          hidden
+          >Custom model ID
+          <input
+            id="chat-model"
+            placeholder="Model ID from your provider"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </label>
+        <div class="chat-connection-actions">
+          <button id="chat-refresh-models" class="text-button" type="button">
+            ↻ Models
+          </button>
+          <button
+            id="chat-manage-connections"
+            class="text-button"
+            type="button"
+          >
+            Manage connections ↗
+          </button>
+        </div>
+        <p
+          id="chat-connection-note"
+          class="chat-connection-note"
+          aria-live="polite"
+        ></p>
+      </div>
       <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
       <div class="chat-suggestions">
         <button data-question="Which changes need attention first?">
