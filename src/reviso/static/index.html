@@ -21,7 +21,7 @@
         <span>Analytic Brain</span></a
       >
       <div class="workspace-label">YOUR WORKSPACE</div>
-      <label class="sr-only" for="dataset-select">Dataset timeline</label>
+      <label class="sr-only" for="dataset-select">Current dataset</label>
       <select id="dataset-select" class="dataset-select"></select>
       <button id="new-dataset" class="new-dataset">
         <span>＋</span> New dataset
@@ -35,7 +35,7 @@
           <span>▤</span> Explore data
         </button>
         <button class="nav-item" data-view="activity">
-          <span>⌁</span> Run activity
+          <span>⌁</span> Model usage
         </button>
         <button class="nav-item" data-view="setup">
           <span>⚙</span> Dataset setup
@@ -108,63 +108,119 @@
             original inputs. Generate a new report to include the changes.
           </div>
           <section id="analysis-bar" class="analysis-bar">
-            <div class="analysis-label">
-              <span>✧</span>
-              <div>
-                <b>Investigation mode</b
-                ><small id="mode-note"
-                  >Local Ollama analysis · Qwen 8B default.</small
+            <div class="analysis-config">
+              <div class="analysis-label">
+                <span>✧</span>
+                <div>
+                  <b>Investigation mode</b
+                  ><small id="mode-note"
+                    >Local Ollama analysis · Qwen 8B default.</small
+                  >
+                </div>
+              </div>
+              <div class="connection-controls">
+                <div class="analysis-setting">
+                  <label for="provider">Connection</label>
+                  <select id="provider">
+                    <option value="ollama">Ollama · local</option>
+                    <option value="gemini">Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="groq">Groq</option>
+                    <option value="offline">Evidence only · no model</option>
+                  </select>
+                </div>
+                <div id="model-picker" class="model-picker">
+                  <label for="model-select">Model</label>
+                  <select id="model-select">
+                    <option value="qwen3:8b">qwen3:8b · default</option>
+                  </select>
+                  <label class="sr-only" for="model">Custom model ID</label
+                  ><input id="model" placeholder="Custom model ID" hidden />
+                </div>
+                <div class="connection-actions">
+                  <button
+                    id="refresh-models"
+                    class="button secondary"
+                    aria-label="Refresh available models"
+                  >
+                    ↻ Models
+                  </button>
+                  <button id="manage-connections" class="button secondary">
+                    Connections
+                  </button>
+                </div>
+                <label class="effort-control"
+                  >Effort<select id="effort">
+                    <option value="auto">Automatic</option>
+                    <option value="low">Low · focused</option>
+                    <option value="high">High · deeper</option>
+                  </select></label
+                >
+                <label class="effort-control"
+                  >Model context<select id="context-window">
+                    <option value="8192">8k</option>
+                    <option value="16384" selected>16k</option>
+                    <option value="32768">32k</option>
+                    <option value="65536">64k</option>
+                    <option value="131072">128k</option>
+                  </select></label
                 >
               </div>
-            </div>
-            <div class="connection-controls">
-              <label class="sr-only" for="provider">Model provider</label
-              ><select id="provider">
-                <option value="ollama">Ollama · local</option>
-                <option value="gemini">Gemini</option>
-                <option value="openai">OpenAI</option>
-                <option value="groq">Groq</option>
-                <option value="offline">Evidence only · no model</option>
-              </select>
-              <div id="model-picker" class="model-picker">
-                <label class="sr-only" for="model-select">Choose a model</label
-                ><select id="model-select">
-                  <option value="qwen3:8b">qwen3:8b · default</option></select
-                ><label class="sr-only" for="model">Custom model ID</label
-                ><input id="model" placeholder="Custom model ID" hidden />
-              </div>
-              <button
-                id="refresh-models"
-                class="button secondary"
-                aria-label="Refresh available models"
+              <small class="effort-note"
+                >Automatic suits your model. High effort needs a capable model
+                with 32k+ context.</small
               >
-                ↻ Models</button
-              ><button id="manage-connections" class="button secondary">
-                Connections</button
-              ><label class="effort-control"
-                >Effort<select id="effort">
-                  <option value="auto">Automatic</option>
-                  <option value="low">Low · focused</option>
-                  <option value="high">High · deeper</option>
-                </select></label
-              ><label class="effort-control"
-                >Model context<select id="context-window">
-                  <option value="8192">8k</option>
-                  <option value="16384" selected>16k</option>
-                  <option value="32768">32k</option>
-                  <option value="65536">64k</option>
-                  <option value="131072">128k</option>
-                </select></label
-              ><button id="generate-report" class="button dark">
-                Generate report <span>↗</span>
-              </button>
             </div>
-            <small class="effort-note"
-              >Automatic uses low effort for local or small-context models. High
-              needs 32k+ context and a capable model; select a capacity your
-              model supports. Evidence and tool budgets change with
-              effort.</small
-            >
+            <form id="setup-form" class="setup-prompt analysis-compose">
+              <div class="analysis-question">
+                <h2>
+                  <label for="analysis-goal"
+                    >What should we learn from this data?</label
+                  >
+                </h2>
+                <p>
+                  Add a question, or leave this blank. The agent will explore
+                  the data and investigate anything unusual.
+                </p>
+              </div>
+              <textarea
+                id="analysis-goal"
+                rows="4"
+                maxlength="2000"
+                placeholder="For example: What might explain customer churn? What changed, and what needs a closer look?"
+              ></textarea>
+              <div class="prompt-footer">
+                <span id="setup-status" class="muted" role="status"></span>
+                <button id="setup-chat" type="button" class="text-button">
+                  Talk to the agent ↗
+                </button>
+              </div>
+              <div class="report-actions">
+                <div
+                  id="cloud-permission"
+                  class="cloud-consent consent-card"
+                  role="group"
+                  aria-labelledby="cloud-permission-title"
+                  hidden
+                >
+                  <b id="cloud-permission-title">Cloud analysis permission</b>
+                  <p id="cloud-permission-description">
+                    Your selected cloud model receives dataset evidence to carry
+                    out the analysis.
+                  </p>
+                  <label for="cloud-allowed"
+                    ><input
+                      id="cloud-allowed"
+                      type="checkbox"
+                      aria-describedby="cloud-permission-description"
+                    /><span>Allow cloud analysis for this dataset</span></label
+                  >
+                </div>
+                <button id="generate-report" type="button" class="button dark">
+                  Generate report <span>↗</span>
+                </button>
+              </div>
+            </form>
           </section>
           <section
             id="progress-panel"
@@ -371,7 +427,7 @@
             <div class="section-heading">
               <div>
                 <div class="eyebrow">INSPECT THE WORK</div>
-                <h2>Run activity</h2>
+                <h2>Model usage</h2>
               </div>
               <button id="refresh-activity" class="button secondary">
                 Refresh
@@ -386,216 +442,41 @@
             <div id="run-list"></div>
           </div>
           <div id="view-setup" class="view" hidden>
-            <div class="section-heading">
-              <div>
-                <div class="eyebrow">A LITTLE CONTEXT GOES A LONG WAY</div>
-                <h2>Tell Analytic Brain what matters.</h2>
+            <details
+              id="text-search-options"
+              class="text-search-options"
+              hidden
+            >
+              <summary>Search description text by meaning (optional)</summary>
+              <p id="semantic-hint"></p>
+              <div class="text-search-fields">
+                <label for="semantic"
+                  >Descriptions to include<select
+                    id="semantic"
+                    multiple
+                    size="4"
+                  ></select
+                ></label>
+                <label for="embedding-provider"
+                  >Connection<select id="embedding-provider">
+                    <option value="">No text embeddings</option>
+                    <option value="ollama">Ollama · local</option>
+                    <option value="gemini">Gemini</option>
+                    <option value="openai">OpenAI</option>
+                  </select></label
+                >
+                <label for="embedding-model"
+                  >Embedding model<input
+                    id="embedding-model"
+                    placeholder="Model ID from your provider"
+                /></label>
               </div>
-            </div>
-            <p class="view-description">
-              These answers shape the investigation. Changing them preserves old
-              reports and applies to the next one.
-            </p>
-            <form id="setup-form" class="setup-grid">
-              <section class="setup-card domain-card">
-                <span class="step-number">START HERE</span>
-                <h3>What should we learn from this data?</h3>
-                <p>
-                  One file is enough. These answers guide the analyst's
-                  questions and the resulting report. You can also discuss them
-                  in chat.
-                </p>
-                <div class="domain-grid">
-                  <label
-                    >Dataset subject<select id="dataset-type">
-                      <option value="unknown">Help me identify it</option>
-                      <option value="time_series">Time series / events</option>
-                      <option value="orders">Orders / purchases</option>
-                      <option value="doctors">
-                        Doctor / provider information
-                      </option>
-                      <option value="claims">Claims / payments</option>
-                      <option value="prices">Prices / valuations</option>
-                      <option value="supply_chain">
-                        Materials / supply chain
-                      </option>
-                      <option value="other">Other</option>
-                    </select></label
-                  ><label
-                    >One row represents<input
-                      id="row-meaning"
-                      maxlength="1000"
-                      placeholder="e.g. One property sale or one claim service line" /></label
-                  ><label class="wide"
-                    >Question or decision to support<textarea
-                      id="analysis-goal"
-                      rows="2"
-                      maxlength="2000"
-                      placeholder="e.g. Understand unusually high prices and which groups need checking"
-                    ></textarea></label
-                  ><label
-                    >Main numeric measure (optional)<select
-                      id="target-column"
-                    ></select></label
-                  ><label
-                    >Time field (optional)<select
-                      id="date-column"
-                    ></select></label
-                  ><label
-                    >Date format<select id="date-format">
-                      <option value="auto">ISO dates · automatic</option>
-                      <option value="%Y-%m-%d">YYYY-MM-DD</option>
-                      <option value="%d/%m/%Y">DD/MM/YYYY</option>
-                      <option value="%m/%d/%Y">MM/DD/YYYY</option>
-                      <option value="%Y-%m-%d %H:%M:%S">
-                        YYYY-MM-DD HH:MM:SS
-                      </option>
-                    </select></label
-                  ><label
-                    >Time grouping<select id="time-grain">
-                      <option value="month">Month</option>
-                      <option value="day">Day</option>
-                    </select></label
-                  >
-                </div>
-                <div id="domain-questions" class="field-hint"></div>
-              </section>
-              <section class="setup-card">
-                <span class="step-number">01</span>
-                <h3>What identifies a record?</h3>
-                <p>
-                  Choose fields that identify what one row represents. This
-                  helps find repetitions in one file and match records across
-                  versions. Leave blank if unsure.
-                </p>
-                <div id="identity-hint" class="field-hint"></div>
-                <label for="identity">Record identity</label
-                ><select id="identity" multiple size="7"></select
-                ><small>Hold Ctrl / ⌘ to select a combination.</small>
-              </section>
-              <section class="setup-card">
-                <span class="step-number">02</span>
-                <h3>Which fields matter most?</h3>
-                <p>
-                  Analytic Brain will prioritize changes to these fields. Tell
-                  it what positive and negative changes mean for your use case.
-                </p>
-                <label for="important">Important fields</label
-                ><select id="important" multiple size="7"></select
-                ><label for="domain-context">Your context</label
-                ><textarea
-                  id="domain-context"
-                  rows="3"
-                  placeholder="For example: price is required; extreme areas need source verification."
-                ></textarea>
-              </section>
-              <section class="setup-card">
-                <span class="step-number">03</span>
-                <h3>Would meaning-based search help?</h3>
-                <p id="semantic-hint">
-                  Description fields can be embedded for semantic retrieval.
-                  Numeric and short category fields stay in SQLite.
-                </p>
-                <label for="semantic">Text columns to embed (optional)</label
-                ><select id="semantic" multiple size="5"></select
-                ><label for="embedding-provider">Embedding connection</label
-                ><select id="embedding-provider">
-                  <option value="">No text embeddings</option>
-                  <option value="ollama">Ollama · local</option>
-                  <option value="gemini">Gemini</option>
-                  <option value="openai">OpenAI</option></select
-                ><label for="embedding-model">Embedding model ID</label
-                ><input
-                  id="embedding-model"
-                  placeholder="Model ID from your provider"
-                /><small
-                  >Uses your selected provider after you build the index. Local
-                  Ollama embeddings stay on this machine; Groq chat can use a
-                  separate embedding connection.</small
-                >
-              </section>
-              <section class="setup-card">
-                <span class="step-number">04</span>
-                <h3>Set the boundaries.</h3>
-                <p>
-                  Your snapshots remain local. AI analysis sends selected
-                  metrics, field names, and bounded record samples to your
-                  chosen provider. Text indexing sends every selected nonempty
-                  text cell.
-                </p>
-                <label class="checkbox-label"
-                  ><input id="cloud-allowed" type="checkbox" /><span
-                    >Allow this dataset's evidence to be sent to my selected AI
-                    provider.</span
-                  ></label
-                >
-                <div class="thresholds">
-                  <label for="growth-threshold"
-                    >Flag volume changes at (%)<input
-                      id="growth-threshold"
-                      type="number"
-                      min="0.1"
-                      max="1000"
-                      step="0.1"
-                      value="25" /></label
-                  ><label for="missing-threshold"
-                    >Flag missing-value changes at (percentage points)<input
-                      id="missing-threshold"
-                      type="number"
-                      min="0.1"
-                      max="1000"
-                      step="0.1"
-                      value="5"
-                  /></label>
-                </div>
-                <div class="field-hint">
-                  Only empty or whitespace-only cells count as missing. NA,
-                  None, and 0 retain their original meaning.
-                </div>
-                <div id="connection-status"></div>
-              </section>
-              <section class="setup-card rename-card">
-                <span class="step-number">05</span>
-                <h3>Do renamed fields mean the same thing?</h3>
-                <p>
-                  Similar values suggest a link, but you decide whether the
-                  meaning and unit stayed the same. Your decision applies to the
-                  next report.
-                </p>
-                <div id="rename-options"></div>
-              </section>
-              <section class="setup-card meanings-card">
-                <h3>What do the fields mean?</h3>
-                <p>
-                  Nominal categories have no order; ordinal categories have an
-                  order. Numeric codes may be labels. These are suggestions
-                  until you confirm them.
-                </p>
-                <div class="table-scroll meanings-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Field / suggestion</th>
-                        <th>Meaning</th>
-                        <th>Ordered labels (optional)</th>
-                      </tr>
-                    </thead>
-                    <tbody id="field-roles"></tbody>
-                  </table>
-                </div>
-                <small
-                  >For ordered labels, enter the order from lowest to highest
-                  separated by |, such as Low | Medium | High. Values outside
-                  your order will be flagged.</small
-                >
-              </section>
-              <div class="setup-save">
-                <span id="setup-status" class="muted"></span
-                ><button type="submit" class="button primary">
-                  Save investigation setup ↗
-                </button>
-              </div>
-            </form>
+              <small
+                >Optional indexing requires your choice of columns and model.
+                Local Ollama keeps text on this machine.</small
+              >
+              <div id="text-index-status"></div>
+            </details>
           </div>
         </div>
       </div>
@@ -625,6 +506,37 @@
         in chronological order. Appended data should include earlier records.
         Overwritten files are preserved as separate versions.
       </p>
+      <label for="upload-destination">Save these files to</label>
+      <select id="upload-destination"></select>
+      <div id="upload-new-dataset" hidden>
+        <label for="upload-dataset-name">New dataset name</label>
+        <input
+          id="upload-dataset-name"
+          maxlength="100"
+          placeholder="Uses the first CSV filename if left blank"
+        />
+      </div>
+      <p id="upload-target-note" class="field-hint"></p>
+      <fieldset class="upload-mode">
+        <legend>What are you uploading?</legend>
+        <label for="upload-single"
+          ><input
+            id="upload-single"
+            type="radio"
+            name="upload-mode"
+            value="single"
+            checked
+          />One file</label
+        >
+        <label for="upload-versions"
+          ><input
+            id="upload-versions"
+            type="radio"
+            name="upload-mode"
+            value="versions"
+          />Multiple versions · up to five</label
+        >
+      </fieldset>
       <div id="upload-steps"></div>
       <label class="drop-zone" id="drop-zone" for="file-input"
         ><span>↥</span><b>Choose CSV files or drop them here</b
@@ -644,32 +556,10 @@
         File order becomes timeline order. Rename labels and reorder below
         before saving.
       </p>
+      <p id="upload-error" class="upload-error" role="alert" hidden></p>
       <button id="upload-files" class="button primary full-width" disabled>
         Save snapshots ↗
       </button>
-    </dialog>
-    <dialog id="new-dialog">
-      <form id="new-form">
-        <button
-          type="button"
-          id="new-close"
-          class="dialog-close"
-          aria-label="Close new dataset"
-        >
-          ×
-        </button>
-        <div class="eyebrow">NEW DATASET</div>
-        <h2>Give this timeline a name.</h2>
-        <label for="new-name">Dataset name</label
-        ><input
-          id="new-name"
-          required
-          maxlength="100"
-          placeholder="e.g. Monthly customer records"
-        /><button class="button primary full-width" type="submit">
-          Create timeline ↗
-        </button>
-      </form>
     </dialog>
     <dialog id="export-dialog">
       <form method="dialog">
@@ -748,6 +638,13 @@
           aria-live="polite"
         ></p>
       </div>
+      <div id="chat-cloud-permission" class="cloud-consent" hidden>
+        <label
+          ><input id="chat-cloud-allowed" type="checkbox" /> Allow this
+          dataset's evidence to be sent to my selected cloud model</label
+        >
+      </div>
+      <p id="chat-run-status" class="chat-connection-note" role="status" hidden></p>
       <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
       <div class="chat-suggestions">
         <button data-question="Which changes need attention first?">

@@ -35,6 +35,7 @@ const state = {
   pending: [],
   busy: false,
   refreshingModels: false,
+  uploading: false,
   lastChatRun: null,
 };
 let toastTimer;
@@ -72,12 +73,16 @@ async function api(path, body) {
   return data;
 }
 
-function runAction(action) {
+function runAction(action, errorTarget = null) {
   return async (event) => {
     try {
       await action(event);
     } catch (error) {
-      toast(error.message, true);
+      if (errorTarget) {
+        $(errorTarget).textContent = error.message;
+        $(errorTarget).hidden = false;
+        $(errorTarget).scrollIntoView({ block: "nearest" });
+      } else toast(error.message, true);
     }
   };
 }
@@ -211,6 +216,11 @@ function updateConnection() {
         : `${provider} · cloud model`;
   renderModelChoices();
   renderChatConnection();
+  const cloud = !["offline", "ollama"].includes(provider);
+  for (const id of ["cloud-permission", "chat-cloud-permission"])
+    $(id).hidden = !cloud || !state.id;
+  for (const id of ["cloud-allowed", "chat-cloud-allowed"])
+    $(id).checked = !!ds()?.config.cloud_allowed;
 }
 
 function modelOptions(provider, chosen) {
@@ -286,7 +296,7 @@ function renderChatConnection() {
       : !connection?.configured
         ? "Add this provider's API key in Manage connections."
         : !ds()?.config.cloud_allowed
-          ? "Cloud analysis needs permission in Dataset setup."
+          ? "Enable cloud permission below to use this model."
           : report() && !report().config.cloud_allowed
             ? "Generate a new report to apply the cloud permission you enabled."
             : "Cloud model · your provider's access and billing apply.";
@@ -336,6 +346,8 @@ function updateConnectionControls() {
     "chat-model-select",
     "chat-model",
     "chat-manage-connections",
+    "cloud-allowed",
+    "chat-cloud-allowed",
   ])
     $(id).disabled = state.busy;
   for (const id of ["refresh-models", "chat-refresh-models"])
@@ -491,7 +503,7 @@ function renderReport() {
         ? "Some findings deserve a closer look."
         : "Here’s what the data reveals.";
   $("story-summary").textContent = !r
-    ? "One file is enough. Complete dataset setup and generate a report, or ask your analyst to help decide what to investigate. More versions add comparisons."
+    ? "One file is enough. Generate a report now, add an optional question, or chat with the agent. More versions add comparisons."
     : r.ai
       ? r.ai.summary
       : `${summary.versions} file(s) reveal ${r.findings.length} observations and screening signals. ${summary.attention} need attention, and ${summary.improvements} suggest better completeness. A change can be expected or problematic; inspect its evidence before deciding.`;
@@ -521,7 +533,14 @@ function renderReport() {
       .join("");
   $("finding-total").textContent = r ? r.findings.length : "";
   $("report-limits").innerHTML = r
-    ? `<details><summary>How to read these findings and their limits</summary><ul>${r.limitations.map((v) => "<li>" + esc(v) + "</li>").join("")}</ul><p>Screening method ${esc(r.method_version)} · Report ${esc(r.id)}</p></details>`
+    ? `<details><summary>How to read these findings and their limits</summary><ul>${(
+        r.analysis_assumptions || []
+      )
+        .concat(r.limitations)
+        .map((v) => "<li>" + esc(v) + "</li>")
+        .join(
+          "",
+        )}</ul><p>Screening method ${esc(r.method_version)} · Report ${esc(r.id)}</p></details>`
     : "";
   renderExploration();
   renderFindings();
@@ -549,7 +568,7 @@ function renderExploration() {
       )
       .join(
         "",
-      )}</div><p class="muted">Field meanings are suggestions until confirmed in setup. Measurements cover the full file; displayed examples and relationship screening are bounded.</p>${numeric.length ? `<div class="table-card"><div class="table-scroll"><table><thead><tr><th>Numeric field</th><th>Range</th><th>Median</th><th>Empty</th><th>Unusual values</th></tr></thead><tbody>${numeric.map(([c, p]) => `<tr><td>${esc(c)}</td><td>${fmt(p.min)} → ${fmt(p.max)}</td><td>${fmt(p.median)}</td><td>${fmt(p.missing)}</td><td>${p.unusual_values == null ? "Not screened" : fmt(p.unusual_values)}</td></tr>`).join("")}</tbody></table></div><small>First ten numeric measures. Full profiles are in Explore data and the exported evidence.</small></div>` : ""}${time ? `<details class="eda-detail"><summary>Time coverage · ${esc(time.field)} · ${time.available_periods} periods</summary><p>${fmt(time.valid_dates)} valid dates · ${fmt(time.invalid_dates)} invalid · ${fmt(time.missing_dates)} empty. ${esc(time.scope)}</p>${metricTable({ periods: time.periods })}</details>` : ""}<details class="eda-detail"><summary>Inspect source record examples · ${samples.length} shown</summary><p class="muted">Evenly spaced rows, up to 12 fields and 200 characters per cell. Use chat or SQL to investigate a particular record group.</p><pre class="evidence-block">${esc(JSON.stringify(samples, null, 2))}</pre></details>${e.relationships?.length ? `<details class="eda-detail"><summary>Numeric relationships · ${e.relationships.length} observed</summary><p class="muted">Up to 12 numeric fields screened. Association does not establish causation.</p>${metricTable({ relationships: e.relationships })}</details>` : ""}`;
+      )}</div><p class="muted">Field meanings are inferred automatically; uncertain meanings remain assumptions. Measurements cover the full file; displayed examples and relationship screening are bounded.</p>${numeric.length ? `<div class="table-card"><div class="table-scroll"><table><thead><tr><th>Numeric field</th><th>Range</th><th>Median</th><th>Empty</th><th>Unusual values</th></tr></thead><tbody>${numeric.map(([c, p]) => `<tr><td>${esc(c)}</td><td>${fmt(p.min)} → ${fmt(p.max)}</td><td>${fmt(p.median)}</td><td>${fmt(p.missing)}</td><td>${p.unusual_values == null ? "Not screened" : fmt(p.unusual_values)}</td></tr>`).join("")}</tbody></table></div><small>First ten numeric measures. Full profiles are in Explore data and the exported evidence.</small></div>` : ""}${time ? `<details class="eda-detail"><summary>Time coverage · ${esc(time.field)} · ${time.available_periods} periods</summary><p>${fmt(time.valid_dates)} valid dates · ${fmt(time.invalid_dates)} invalid · ${fmt(time.missing_dates)} empty. ${esc(time.scope)}</p>${metricTable({ periods: time.periods })}</details>` : ""}<details class="eda-detail"><summary>Inspect source record examples · ${samples.length} shown</summary><p class="muted">Evenly spaced rows, up to 12 fields and 200 characters per cell. Use chat or SQL to investigate a particular record group.</p><pre class="evidence-block">${esc(JSON.stringify(samples, null, 2))}</pre></details>${e.relationships?.length ? `<details class="eda-detail"><summary>Numeric relationships · ${e.relationships.length} observed</summary><p class="muted">Up to 12 numeric fields screened. Association does not establish causation.</p>${metricTable({ relationships: e.relationships })}</details>` : ""}`;
 }
 
 function chart(versions) {
@@ -599,7 +618,7 @@ function renderFindings() {
     pair = $("pair-filter").value;
   if (!r) {
     $("findings").innerHTML =
-      '<div class="blank-card">Your first report starts here. Complete dataset setup, then select Generate report.</div>';
+      '<div class="blank-card">Your first report starts here. Select Generate report, or add an optional question in Dataset setup.</div>';
     return;
   }
   const filtered = r.findings.filter(
@@ -664,175 +683,84 @@ function options(columns, chosen) {
 function renderSetup() {
   const config = ds()?.config;
   if (!config) return;
-  const columns = [...new Set(currentVersions().flatMap((v) => v.columns))];
   const discovery = state.data.discovery;
-  $("dataset-type").value = config.dataset_type || "unknown";
-  $("row-meaning").value = config.row_meaning || "";
+  const columns = [...new Set(currentVersions().flatMap((v) => v.columns))];
   $("analysis-goal").value = config.analysis_goal || "";
-  for (const id of ["target-column", "date-column"])
-    $(id).innerHTML =
-      '<option value="">Not selected</option>' +
-      options(currentVersions().at(-1)?.columns || [], [
-        config[id.replace("-", "_")] || "",
-      ]);
-  $("date-format").value = config.date_format || "auto";
-  $("time-grain").value = config.time_grain || "month";
-  renderDomainQuestions();
-  const roles = [
-    "identifier",
-    "nominal",
-    "ordinal",
-    "continuous",
-    "discrete",
-    "datetime",
-    "boolean",
-    "text",
-    "empty",
-  ];
-  $("field-roles").innerHTML = columns
-    .map((c) => {
-      const suggestion = discovery.field_suggestions?.[c];
-      return `<tr><td><b>${esc(c)}</b><small>${esc(suggestion?.role || "unclassified")} · ${esc(suggestion?.basis || "Review the field meaning.")}</small></td><td><select data-role-column="${esc(c)}" aria-label="Meaning of ${esc(c)}"><option value="">Use suggestion</option>${roles.map((r) => `<option value="${r}" ${config.column_roles?.[c] === r ? "selected" : ""}>${esc(human(r))}</option>`).join("")}</select></td><td><input data-order-column="${esc(c)}" aria-label="Ordered labels for ${esc(c)}" value="${esc((config.category_orders?.[c] || []).join(" | "))}" placeholder="Low | Medium | High"></td></tr>`;
-    })
-    .join("");
-  $("identity").innerHTML = options(columns, config.identity);
-  $("important").innerHTML = options(columns, config.important);
+  $("setup-status").textContent =
+    "Optional · leave blank for automatic analysis.";
   $("semantic").innerHTML = options(
-    columns.filter((c) =>
-      currentVersions().some((v) => v.profile[c]?.kind === "text"),
+    columns.filter((column) =>
+      currentVersions().some(
+        (version) => version.profile[column]?.kind === "text",
+      ),
     ),
     config.semantic,
   );
-  $("identity-hint").textContent = discovery.identity_candidates.length
-    ? "Unique, complete candidates: " +
-      discovery.identity_candidates.join(", ") +
-      ". Choose based on meaning, not uniqueness alone."
-    : "No single field is complete and unique in every version. Consider a combination, or review repeated identities.";
-  $("semantic-hint").textContent = discovery.semantic_candidates.length
-    ? "Analytic Brain found description-like text in " +
+  $("text-search-options").hidden =
+    !discovery.semantic_candidates?.length && !config.semantic.length;
+  $("semantic-hint").textContent = discovery.semantic_candidates?.length
+    ? "Description-like fields found: " +
       discovery.semantic_candidates.join(", ") +
-      ". May it embed one or more of these for meaning-based search? This is optional."
-    : "No description-like text was detected automatically. You can still select a text field if semantic retrieval would be useful.";
-  $("domain-context").value = config.context;
-  $("cloud-allowed").checked = config.cloud_allowed;
-  $("growth-threshold").value = config.growth_threshold;
-  $("missing-threshold").value = config.missing_threshold;
+      ". Include them only if meaning-based search would help."
+    : "Choose text fields only if meaning-based search would help.";
   $("embedding-provider").value = config.embedding_provider;
   $("embedding-model").value = config.embedding_model;
-  $("setup-status").textContent = config.setup_complete
-    ? "Setup saved. You can update these answers at any time."
-    : "Answer these questions before creating your first report.";
-  $("connection-status").innerHTML = state.connections
-    .map(
-      (c) =>
-        `<div class="connection-status-item"><b>${esc(c.id)}</b><span>${c.configured ? "Key available on server" : "Key not configured"}</span></div>`,
-    )
-    .join("");
-  const links = new Map();
-  [
-    ...(report()?.comparisons || []),
-    ...(report()?.baseline ? [report().baseline] : []),
-  ]
-    .flatMap((p) => p.possible_renames || [])
-    .forEach((link) => links.set(link.old + "→" + link.new, link));
-  (config.rename_decisions || []).forEach((link) =>
-    links.set(link.old + "→" + link.new, link),
-  );
-  $("rename-options").innerHTML = links.size
-    ? [...links.values()]
-        .map((link) => {
-          const decision =
-            (config.rename_decisions || []).find(
-              (d) => d.old === link.old && d.new === link.new,
-            )?.decision || "auto";
-          return `<label class="rename-option">${esc(link.old)} → ${esc(link.new)}<select data-link-old="${esc(link.old)}" data-link-new="${esc(link.new)}"><option value="auto" ${decision === "auto" ? "selected" : ""}>Use the provisional match</option><option value="confirm" ${decision === "confirm" ? "selected" : ""}>Same meaning — confirmed</option><option value="reject" ${decision === "reject" ? "selected" : ""}>Different meaning — keep separate</option></select></label>`;
-        })
-        .join("")
-    : '<div class="field-hint">Possible renames will appear here after your first report. You can confirm their meaning or keep the fields separate.</div>';
-  if (config.semantic.length && report())
-    $("connection-status").innerHTML +=
-      `<div class="index-action"><button type="button" id="build-index" class="button secondary">Build text index ↗</button><small>${state.data.index?.ready ? "Index ready" : `${state.data.index?.indexed || 0} / ${state.data.index?.expected || 0} text cells indexed for saved report`}</small></div>`;
+  $("text-index-status").innerHTML =
+    config.semantic.length && report()
+      ? `<button type="button" id="build-index" class="button secondary">Build text index ↗</button><small>${state.data.index?.ready ? "Index ready" : `${state.data.index?.indexed || 0} / ${state.data.index?.expected || 0} text cells indexed for saved report`}</small>`
+      : "";
 }
 
-function renderDomainQuestions() {
-  const kind = $("dataset-type").value;
-  const discovery = state.data?.discovery;
-  const questions = discovery?.domain_questions?.[kind] ||
-    discovery?.follow_up_questions || [
-      "What does one row represent, and what would you like to learn?",
-    ];
-  const suggestions = (discovery?.domain_suggestions || [])
-    .map((s) => human(s.type))
-    .join(", ");
-  $("domain-questions").innerHTML =
-    (suggestions
-      ? `<p>Field names suggest ${esc(suggestions)}. Please confirm the subject above.</p>`
-      : "") +
-    "<b>Your analyst will clarify:</b><ul>" +
-    questions.map((q) => "<li>" + esc(q) + "</li>").join("") +
-    "</ul><small>Include answers in your goal or context, or discuss them in chat.</small>";
-}
-
-async function saveSetup(event) {
-  event.preventDefault();
+async function saveAnalysisPreferences(datasetId) {
   const config = {
-    dataset_type: $("dataset-type").value,
-    row_meaning: $("row-meaning").value,
-    analysis_goal: $("analysis-goal").value,
-    target_column: $("target-column").value,
-    date_column: $("date-column").value,
-    date_format: $("date-format").value,
-    time_grain: $("time-grain").value,
-    column_roles: Object.fromEntries(
-      Array.from(document.querySelectorAll("[data-role-column]"))
-        .filter((s) => s.value)
-        .map((s) => [s.dataset.roleColumn, s.value]),
-    ),
-    category_orders: Object.fromEntries(
-      Array.from(document.querySelectorAll("[data-order-column]"))
-        .filter((s) => s.value.trim())
-        .map((s) => [
-          s.dataset.orderColumn,
-          s.value.split("|").map((v) => v.trim()),
-        ]),
-    ),
-    identity: selected("identity"),
-    important: selected("important"),
+    analysis_goal: $("analysis-goal").value.trim(),
     semantic: selected("semantic"),
-    context: $("domain-context").value,
-    cloud_allowed: $("cloud-allowed").checked,
-    growth_threshold: Number($("growth-threshold").value),
-    missing_threshold: Number($("missing-threshold").value),
     embedding_provider: $("embedding-provider").value,
-    embedding_model: $("embedding-model").value,
+    embedding_model: $("embedding-model").value.trim(),
     setup_complete: true,
-    rename_decisions: Array.from(document.querySelectorAll("[data-link-old]"))
-      .filter((s) => s.value !== "auto")
-      .map((s) => ({
-        old: s.dataset.linkOld,
-        new: s.dataset.linkNew,
-        decision: s.value,
-      })),
   };
   if (
     config.semantic.length &&
-    (!config.embedding_provider || !config.embedding_model.trim())
+    (!config.embedding_provider || !config.embedding_model)
   )
     throw new Error(
-      "Choose an embedding provider and model ID, or leave the text columns unselected.",
+      "Choose a connection and model for description search, or leave those fields unselected.",
     );
   if (
     config.semantic.length &&
     config.embedding_provider !== "ollama" &&
-    !config.cloud_allowed
+    !ds().config.cloud_allowed
   )
     throw new Error(
-      "Cloud text embeddings require permission to send the selected text to your provider.",
+      "Enable cloud permission beside your model controls before indexing descriptions with a cloud provider.",
     );
-  await api("/api/configure", { dataset: state.id, config });
-  await loadDataset();
-  toast("Setup saved. Generate a report to use these answers.");
+  const dataset = await api("/api/configure", { dataset: datasetId, config });
+  if (state.id === datasetId) state.data.dataset = dataset;
+}
+
+async function saveSetup(event) {
+  event.preventDefault();
+  await startJob("report");
   setView("report");
+}
+
+async function saveCloudPermission(event) {
+  const datasetId = state.id;
+  if (!datasetId || state.busy) return;
+  try {
+    const dataset = await api("/api/configure", {
+      dataset: datasetId,
+      config: { cloud_allowed: event.target.checked },
+    });
+    if (state.id !== datasetId) return;
+    state.data.dataset = dataset;
+    if (report()) {
+      state.data.report_stale = true;
+      $("stale-banner").hidden = false;
+    }
+  } finally {
+    updateConnection();
+  }
 }
 
 function renderExplore() {
@@ -969,16 +897,12 @@ async function startJob(kind, question = "") {
   if (state.busy) throw new Error("An investigation is already running.");
   if (!currentVersions().length)
     throw new Error("Upload at least one CSV to begin.");
-  if (kind === "report" && !ds().config.setup_complete) {
-    setView("setup");
-    toast("Answer the setup questions to guide the first report.");
-    return;
-  }
   const provider = $("provider").value,
     model = $("model").value.trim();
   if (!["offline", "ollama"].includes(provider) && !ds().config.cloud_allowed) {
-    setView("setup");
-    throw new Error("Cloud analysis needs your permission in Dataset setup.");
+    throw new Error(
+      "Cloud analysis needs your permission beside the model controls.",
+    );
   }
   if (provider !== "offline" && !model)
     throw new Error("Enter a model ID available to your provider account.");
@@ -996,6 +920,7 @@ async function startJob(kind, question = "") {
   state.busy = true;
   setBusy(true);
   try {
+    if (kind === "report") await saveAnalysisPreferences(id);
     const { run_id } = await api("/api/" + kind, {
       dataset: id,
       provider,
@@ -1036,9 +961,11 @@ function setBusy(busy) {
   $("progress-panel").hidden = !busy;
   $("generate-report").disabled = busy;
   $("chat-send").disabled = busy;
-  $("upload-files").disabled = busy || !state.pending.length;
+  renderPending();
   $("progress-title").textContent = "Investigating your dataset";
   $("progress-detail").textContent = "Collecting evidence…";
+  $("chat-run-status").hidden = !busy;
+  $("chat-run-status").textContent = "Analysing your data…";
 }
 
 async function waitForRun(id, datasetId) {
@@ -1057,41 +984,105 @@ async function waitForRun(id, datasetId) {
       const latest = run.payload.events.at(-1);
       if (latest)
         $("progress-detail").textContent =
-          latest.kind === "model_call"
-            ? "Model response received. Checking evidence…"
-            : latest.kind === "sql"
-              ? "Inspecting a read-only query result…"
-              : latest.kind === "embed"
-                ? `Embedding selected text · ${latest.detail.cells_this_run} cells completed`
-                : human(latest.kind) +
-                  " · " +
-                  (latest.detail.actions?.[0] ||
-                    "Following the saved investigation plan.");
+          latest.kind === "rate_limit_wait"
+            ? latest.detail.seconds == null
+              ? "Waiting for this connection's active request…"
+              : `Respecting provider limits · retrying in about ${Math.ceil(latest.detail.seconds)} seconds…`
+            : latest.kind === "model_call"
+              ? "Model response received. Checking evidence…"
+              : latest.kind === "sql"
+                ? "Inspecting a read-only query result…"
+                : latest.kind === "embed"
+                  ? `Embedding selected text · ${latest.detail.cells_this_run} cells completed`
+                  : human(latest.kind) +
+                    " · " +
+                    (latest.detail.actions?.[0] ||
+                      "Following the saved investigation plan.");
+      $("chat-run-status").textContent = $("progress-detail").textContent;
     }
     if (run.status !== "running") return run;
     await new Promise((resolve) => setTimeout(resolve, 900));
   }
 }
 
-function openUpload() {
+function openUpload(destination = null) {
   state.pending = [];
-  renderPending();
   $("file-input").value = "";
-  $("upload-steps").innerHTML = currentVersions()
-    .map(
-      (v) =>
-        `<div class="upload-existing"><span>V${v.ordinal}</span>${esc(v.label)} · ${fmt(v.row_count)} records</div>`,
-    )
-    .join("");
+  $("upload-dataset-name").value = "";
+  $("upload-single").checked = true;
+  $("upload-versions").checked = false;
+  renderUploadDestination(
+    destination ||
+      (state.id && currentVersions().length < 5 ? "current" : "new"),
+  );
   $("upload-dialog").showModal();
 }
 
+function renderUploadDestination(choice = $("upload-destination").value) {
+  const count = currentVersions().length;
+  $("upload-destination").innerHTML =
+    '<option value="new">New dataset</option>' +
+    (state.id
+      ? `<option value="current" ${count >= 5 ? "disabled" : ""}>Add versions to ${esc(ds()?.name || "the current dataset")} · ${count}/5 saved</option>`
+      : "");
+  $("upload-destination").value =
+    choice === "current" && state.id && count < 5 ? "current" : "new";
+  renderUploadTarget();
+}
+
+function uploadVersionCount() {
+  return $("upload-destination").value === "current"
+    ? currentVersions().length
+    : 0;
+}
+
+function setUploadMode(mode) {
+  const multiple = mode === "versions" || uploadVersionCount() > 0;
+  $("upload-single").checked = !multiple;
+  $("upload-versions").checked = multiple;
+  renderPending();
+}
+
+function renderUploadTarget() {
+  const isNew = $("upload-destination").value === "new";
+  $("upload-new-dataset").hidden = !isNew;
+  $("upload-target-note").textContent = isNew
+    ? "Creates a separate dataset. Use this for a different file such as customer churn; your existing datasets stay unchanged."
+    : `Adds complete snapshots to ${ds()?.name || "this dataset"}. ${5 - currentVersions().length} version slot(s) remain. Use New dataset for unrelated data.`;
+  $("upload-steps").innerHTML = isNew
+    ? ""
+    : currentVersions()
+        .map(
+          (version) =>
+            `<div class="upload-existing"><span>V${version.ordinal}</span>${esc(version.label)} · ${fmt(version.row_count)} records</div>`,
+        )
+        .join("");
+  if (isNew && !$("upload-dataset-name").value.trim() && state.pending.length)
+    $("upload-dataset-name").value = state.pending[0].label.slice(0, 100);
+  if (uploadVersionCount() > 0) {
+    $("upload-single").checked = false;
+    $("upload-versions").checked = true;
+  }
+  renderPending();
+}
+
 function addFiles(files) {
-  const available = 5 - currentVersions().length - state.pending.length;
+  if (state.uploading)
+    throw new Error("Wait for these files to finish saving.");
+  $("upload-error").hidden = true;
   const accepted = Array.from(files);
+  $("file-input").value = "";
+  if (
+    !$("upload-versions").checked &&
+    state.pending.length + accepted.length > 1
+  )
+    throw new Error(
+      "Choose Multiple versions to select more than one CSV, or remove the current file first.",
+    );
+  const available = 5 - uploadVersionCount() - state.pending.length;
   if (accepted.length > available)
     throw new Error(
-      `This timeline has room for ${available} more version${available === 1 ? "" : "s"}. Start a new dataset for another timeline.`,
+      `This dataset has room for ${available} more version${available === 1 ? "" : "s"}. Choose New dataset for a separate upload.`,
     );
   for (const file of accepted) {
     if (!file.name.toLowerCase().endsWith(".csv"))
@@ -1103,17 +1094,49 @@ function addFiles(files) {
   accepted.forEach((file) =>
     state.pending.push({ file, label: file.name.replace(/\.csv$/i, "") }),
   );
+  if (
+    $("upload-destination").value === "new" &&
+    !$("upload-dataset-name").value.trim() &&
+    state.pending.length
+  )
+    $("upload-dataset-name").value = state.pending[0].label.slice(0, 100);
   renderPending();
 }
 
 function renderPending() {
+  $("upload-error").hidden = true;
+  $("upload-error").textContent = "";
+  const count = uploadVersionCount();
+  const locked = state.uploading;
   $("pending-files").innerHTML = state.pending
     .map(
-      (p, i) =>
-        `<div class="pending-file"><span>V${currentVersions().length + i + 1}</span><input data-file-label="${i}" aria-label="Version ${currentVersions().length + i + 1} label" maxlength="100" value="${esc(p.label)}"><button data-file-up="${i}" aria-label="Move version up" ${i === 0 ? "disabled" : ""}>↑</button><button data-file-down="${i}" aria-label="Move version down" ${i === state.pending.length - 1 ? "disabled" : ""}>↓</button><button data-file-remove="${i}" aria-label="Remove file">×</button></div>`,
+      (pending, index) =>
+        `<div class="pending-file"><span>V${count + index + 1}</span><input data-file-label="${index}" aria-label="Version ${count + index + 1} label" maxlength="100" value="${esc(pending.label)}" ${locked ? "disabled" : ""}><button type="button" data-file-up="${index}" aria-label="Move version up" ${index === 0 || locked ? "disabled" : ""}>↑</button><button type="button" data-file-down="${index}" aria-label="Move version down" ${index === state.pending.length - 1 || locked ? "disabled" : ""}>↓</button><button type="button" data-file-remove="${index}" aria-label="Remove file" ${locked ? "disabled" : ""}>×</button></div>`,
     )
     .join("");
-  $("upload-files").disabled = !state.pending.length || state.busy;
+  const overCapacity = count + state.pending.length > 5;
+  const multiple = $("upload-versions").checked;
+  const wrongMode = !multiple && state.pending.length > 1;
+  $("upload-files").disabled =
+    !state.pending.length || state.busy || locked || overCapacity || wrongMode;
+  $("upload-single").disabled = locked || count > 0;
+  $("upload-versions").disabled = locked;
+  $("file-input").multiple = multiple;
+  $("upload-note").textContent = state.busy
+    ? "Wait for the active investigation to finish before saving files."
+    : multiple
+      ? "Arrange snapshots from earliest to latest with ↑ and ↓ before saving. Labels and file order become your timeline."
+      : "Choose one CSV for this dataset. Select Multiple versions to compare several snapshots.";
+  for (const id of ["upload-destination", "upload-dataset-name", "file-input"])
+    $(id).disabled = locked;
+  $("upload-dialog").querySelector(".dialog-close").disabled = locked;
+  $("drop-zone").setAttribute("aria-disabled", String(locked));
+  if (overCapacity || wrongMode) {
+    $("upload-error").textContent = overCapacity
+      ? "These files exceed the five-version limit. Choose New dataset or remove some files."
+      : "Several files are selected. Choose Multiple versions or remove files before saving.";
+    $("upload-error").hidden = false;
+  }
 }
 
 function base64File(file) {
@@ -1121,19 +1144,45 @@ function base64File(file) {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result.split(",")[1]);
     reader.onerror = () => reject(new Error("The file could not be read."));
+    reader.onabort = () =>
+      reject(
+        new Error("Reading the file was interrupted. Try selecting it again."),
+      );
     reader.readAsDataURL(file);
   });
 }
 
 async function uploadFiles() {
-  if (!state.pending.length) return;
-  $("upload-files").disabled = true;
+  if (!state.pending.length || state.uploading) return;
+  if (state.busy)
+    throw new Error("Wait for the active investigation before saving files.");
+  if (!$("upload-versions").checked && state.pending.length > 1)
+    throw new Error("Choose Multiple versions before saving several files.");
+  if (uploadVersionCount() + state.pending.length > 5)
+    throw new Error(
+      "Choose New dataset or remove files to stay within the five-version limit.",
+    );
+  $("upload-error").hidden = true;
+  state.uploading = true;
+  renderPending();
   try {
-    if (!state.id) {
-      const created = await api("/api/datasets", {
-        name: state.pending[0].label.slice(0, 100) || "My dataset",
-      });
+    if ($("upload-destination").value === "new" || !state.id) {
+      const name =
+        $("upload-dataset-name").value.trim() ||
+        state.pending[0].label.slice(0, 100) ||
+        "My dataset";
+      const created = await api("/api/datasets", { name });
       state.id = created.id;
+      $("query-input").value = "";
+      $("query-result").innerHTML = "";
+      state.data = {
+        dataset: created,
+        versions: [],
+        report: null,
+        discovery: {},
+        index: null,
+      };
+      renderUploadDestination("current");
     }
     while (state.pending.length) {
       const pending = state.pending[0];
@@ -1150,11 +1199,20 @@ async function uploadFiles() {
     $("upload-dialog").close();
     await initialize();
     if (!ds().config.setup_complete) setView("setup");
-    toast("Snapshots saved. Set up the investigation, then generate a report.");
+    toast(
+      "Dataset ready. Start the analysis with an optional question, or chat with the agent.",
+    );
   } catch (error) {
-    if (state.id) await initialize();
+    if (state.id) {
+      try {
+        await initialize();
+      } catch {
+        /* Keep the upload error and pending files available for retry. */
+      }
+    }
     throw error;
   } finally {
+    state.uploading = false;
     $("upload-files").textContent = "Save snapshots ↗";
     renderPending();
   }
@@ -1337,30 +1395,14 @@ $("connection-cards").addEventListener(
     }
   }),
 );
-$("new-dataset").addEventListener("click", () => {
-  $("new-name").value = "";
-  $("new-dialog").showModal();
-  $("new-name").focus();
-});
-$("new-close").addEventListener("click", () => $("new-dialog").close());
-$("new-form").addEventListener(
-  "submit",
-  runAction(async (event) => {
-    event.preventDefault();
-    const created = await api("/api/datasets", { name: $("new-name").value });
-    state.id = created.id;
-    state.view = "report";
-    $("new-dialog").close();
-    await initialize();
-  }),
-);
+$("new-dataset").addEventListener("click", () => openUpload("new"));
 ["add-versions", "empty-upload"].forEach((id) =>
-  $(id).addEventListener("click", openUpload),
+  $(id).addEventListener("click", () => openUpload()),
 );
 $("load-demo").addEventListener("click", runAction(loadDemo));
 $("file-input").addEventListener(
   "change",
-  runAction(() => addFiles($("file-input").files)),
+  runAction(() => addFiles($("file-input").files), "upload-error"),
 );
 $("drop-zone").addEventListener("dragover", (event) => {
   event.preventDefault();
@@ -1375,8 +1417,16 @@ $("drop-zone").addEventListener(
     event.preventDefault();
     $("drop-zone").classList.remove("dragging");
     addFiles(event.dataTransfer.files);
-  }),
+  }, "upload-error"),
 );
+$("upload-destination").addEventListener("change", renderUploadTarget);
+$("upload-single").addEventListener("change", () => setUploadMode("single"));
+$("upload-versions").addEventListener("change", () =>
+  setUploadMode("versions"),
+);
+$("upload-dialog").addEventListener("cancel", (event) => {
+  if (state.uploading) event.preventDefault();
+});
 $("pending-files").addEventListener("input", (event) => {
   if (event.target.dataset.fileLabel !== undefined)
     state.pending[Number(event.target.dataset.fileLabel)].label =
@@ -1384,7 +1434,7 @@ $("pending-files").addEventListener("input", (event) => {
 });
 $("pending-files").addEventListener("click", (event) => {
   const target = event.target.closest("button");
-  if (!target) return;
+  if (!target || state.uploading) return;
   let i;
   if (target.dataset.fileRemove !== undefined)
     state.pending.splice(Number(target.dataset.fileRemove), 1);
@@ -1404,19 +1454,23 @@ $("pending-files").addEventListener("click", (event) => {
   }
   renderPending();
 });
-$("upload-files").addEventListener("click", runAction(uploadFiles));
-$("dataset-type").addEventListener("change", renderDomainQuestions);
+$("upload-files").addEventListener(
+  "click",
+  runAction(uploadFiles, "upload-error"),
+);
 $("setup-form").addEventListener("submit", runAction(saveSetup));
-$("setup-form").addEventListener(
+$("setup-chat").addEventListener("click", () =>
+  openChat($("analysis-goal").value.trim()),
+);
+for (const id of ["cloud-allowed", "chat-cloud-allowed"])
+  $(id).addEventListener("change", runAction(saveCloudPermission));
+$("view-setup").addEventListener(
   "click",
   runAction(async (event) => {
     if (event.target.id === "build-index") await startJob("index");
   }),
 );
-$("generate-report").addEventListener(
-  "click",
-  runAction(() => startJob("report")),
-);
+$("generate-report").addEventListener("click", runAction(saveSetup));
 $("severity-filters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-severity]");
   if (button) {
@@ -1495,7 +1549,7 @@ $("export-open").addEventListener("click", openExport);
 $("plan-open").addEventListener("click", () => {
   $("plan-list").innerHTML = (
     report()?.plan || [
-      "Complete setup and generate a report to inspect the investigation plan.",
+      "Generate a report to inspect the investigation plan. No setup answers are required.",
     ]
   )
     .map((v) => "<li>" + esc(v) + "</li>")

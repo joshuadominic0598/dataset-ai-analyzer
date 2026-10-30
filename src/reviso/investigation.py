@@ -77,7 +77,7 @@ def bounded_result(result, budget=1800):
         compact = {k: v for k, v in result.items() if k != rows_key}
         compact[rows_key] = []
         compact["context_note"] = (
-            "Only a prefix fits the model context; full returned evidence is saved in run activity."
+            "Only a prefix fits the model context; full returned evidence is saved in model usage."
         )
         for row in result[rows_key]:
             candidate = {**compact, rows_key: compact[rows_key] + [row]}
@@ -87,5 +87,5 @@ def bounded_result(result, budget=1800):
         if size(compact) <= budget:
             return compact
     return {
-        "context_note": "Result exceeds the context allowance. Query fewer explicit columns or use an aggregate. Full result is saved in run activity."
+        "context_note": "Result exceeds the context allowance. Query fewer explicit columns or use an aggregate. Full result is saved in model usage."
     }
