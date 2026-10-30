@@ -8,7 +8,8 @@ import urllib.request
 
 from .connections import ConnectionManager, local_url, valid_model
 from .data import dump
-from .structured import response_schema
+from .rate_limits import MAX_ATTEMPTS, RATE_HEADERS, RATE_LIMITER, WAIT_BUDGET, RateLimitError
+from .structured import groq_chat_tools, response_schema
 
 PROVIDERS = {
     "ollama": {"base": "http://127.0.0.1:11434", "key": None, "model": "OLLAMA_MODEL"},
@@ -40,12 +41,17 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 def _read_json(request, timeout, local=False):
+    request.add_header("User-Agent", "AnalyticBrain/0.2")
     if local:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
         response = opener.open(request, timeout=timeout)
     else:
         response = urllib.request.urlopen(request, timeout=timeout)
     with response:
+        headers = getattr(response, "headers", {})
+        request.rate_headers = {
+            name: headers.get(name) for name in RATE_HEADERS if headers.get(name) is not None
+        }
         raw = response.read(4_000_001)
     if len(raw) > 4_000_000:
         raise ProviderError("Provider response exceeded the size limit.")
@@ -115,6 +121,7 @@ def list_models(provider, settings=None):
                     for s in (
                         "whisper",
                         "tts",
+                        "orpheus",
                         "transcri",
                         "realtime",
                         "image",
@@ -186,6 +193,7 @@ class Client:
         self.settings = PROVIDERS[provider]
         connection = settings if settings is not None else ConnectionManager().resolve(provider)
         self.key = connection.get("api_key", "")
+        self.tier = connection.get("tier", "auto")
         self.model = str(model or connection.get("model", "")).strip()
         self.base = (
             local_url(connection.get("base_url", "http://127.0.0.1:11434"))
@@ -206,6 +214,19 @@ class Client:
             )
 
     def request(self, endpoint, payload, record=True):
+        if self.provider == "ollama":
+            return self._request(endpoint, payload, record)
+        deadline = time.monotonic() + WAIT_BUDGET
+        notify = self.recorder if record else None
+        try:
+            with RATE_LIMITER.guard(
+                self.provider, self.key, payload["model"], deadline, notify, self.tier == "paid"
+            ) as gate:
+                return self._request(endpoint, payload, record, gate, deadline)
+        except RateLimitError as error:
+            raise ProviderError(str(error)) from None
+
+    def _request(self, endpoint, payload, record=True, gate=None, deadline=None):
         headers = {"Content-Type": "application/json"}
         if self.provider != "ollama":
             headers["Authorization"] = "Bearer " + self.key
@@ -213,11 +234,19 @@ class Client:
             self.base + endpoint, data=dump(payload).encode(), headers=headers
         )
         start = time.monotonic()
-        for attempt in range(2):
+        attempts = MAX_ATTEMPTS if gate else 1
+        estimated_tokens = (len(dump(payload).encode()) + 2) // 3 + payload.get(
+            "max_completion_tokens", payload.get("max_output_tokens", 0)
+        )
+        for attempt in range(attempts):
+            if gate:
+                gate.wait(estimated_tokens, deadline, self.recorder if record else None)
             try:
                 result = _read_json(
                     request, 180 if self.provider == "ollama" else 35, self.provider == "ollama"
                 )
+                if gate:
+                    gate.update(getattr(request, "rate_headers", {}))
                 usage = result.get("usage")
                 if (
                     self.provider == "ollama"
@@ -245,6 +274,8 @@ class Client:
                     )
                 return result
             except urllib.error.HTTPError as exc:
+                if gate:
+                    gate.update(exc.headers)
                 if self.recorder and record:
                     self.recorder(
                         "model_call",
@@ -261,13 +292,10 @@ class Client:
                         },
                     )
                 # Never copy upstream bodies: they can echo credentials or dataset text.
-                if exc.code == 429 and attempt == 0:
-                    try:
-                        delay = min(max(float(exc.headers.get("Retry-After", 1)), 0), 3)
-                    except (ValueError, TypeError):
-                        delay = 1
-                    time.sleep(delay)
-                    continue
+                if exc.code == 429 and gate:
+                    gate.defer(exc.headers, attempt)
+                    if attempt < attempts - 1:
+                        continue
                 message = {
                     401: "The provider rejected this key.",
                     403: "This connection or model is not permitted.",
@@ -370,6 +398,18 @@ class Client:
                 ],
                 "max_completion_tokens": output,
             }
+            if self.provider == "groq":
+                if context.get("response_kind") == "chat":
+                    payload.update(
+                        tools=groq_chat_tools(context),
+                        tool_choice="required",
+                        parallel_tool_calls=False,
+                    )
+                    payload["messages"][0]["content"] += (
+                        "\nReturn exactly one registered function call for the next data action or the final answer. The application executes and validates actions; do not output action JSON as ordinary text."
+                    )
+                else:
+                    payload["response_format"] = {"type": "json_object"}
             if execution and (
                 (
                     self.provider == "gemini"
@@ -380,7 +420,10 @@ class Client:
                 payload["reasoning_effort"] = effort
             result = self.request("/chat/completions", payload)
             try:
-                text = result["choices"][0]["message"]["content"]
+                message = result["choices"][0]["message"]
+                if self.provider == "groq" and context.get("response_kind") == "chat":
+                    return self._groq_action(message, payload["tools"])
+                text = message["content"]
             except (KeyError, IndexError, TypeError):
                 raise ProviderError("The model did not return a completed answer.") from None
         if not isinstance(text, str) or not text.strip():
@@ -397,6 +440,34 @@ class Client:
         if not isinstance(value, dict):
             raise ProviderError("The model answer must be a JSON object.")
         return value
+
+    def _groq_action(self, message, tools):
+        calls = message.get("tool_calls")
+        if not isinstance(calls, list) or len(calls) != 1:
+            raise ProviderError("The model must return one analyst action at a time.")
+        try:
+            function = calls[0]["function"]
+            name = function["name"]
+            allowed = {tool["function"]["name"] for tool in tools}
+            if name not in allowed:
+                raise ValueError()
+            arguments = json.loads(function["arguments"])
+            if not isinstance(arguments, dict):
+                raise ValueError()
+            if name == "respond":
+                answer, references = arguments["answer"], arguments["evidence_ids"]
+                if not isinstance(answer, str) or not isinstance(references, list):
+                    raise ValueError()
+                schema = next(tool["function"]["parameters"] for tool in tools if tool["function"]["name"] == "respond")
+                available = schema["properties"]["evidence_ids"]["items"].get("enum", [])
+                if any(not isinstance(reference, str) or reference not in available for reference in references):
+                    raise ValueError()
+                if references and not re.search(r"\[(?:F|E|Q|S)\d+\]", answer):
+                    answer = answer.rstrip() + " " + " ".join("[" + reference + "]" for reference in dict.fromkeys(references))
+                return {"answer": answer, "evidence_ids": references}
+            return {**arguments, "tool": name}
+        except (KeyError, TypeError, ValueError):
+            raise ProviderError("The model returned an invalid analyst action.") from None
 
     def embed(self, texts, model):
         if self.provider == "groq":

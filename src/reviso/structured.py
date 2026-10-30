@@ -1,4 +1,4 @@
-"""Local structured output contracts; evidence checks still run after generation."""
+"""Structured output contracts; evidence checks still run after generation."""
 
 def object_schema(properties, required=None):
     return {
@@ -74,3 +74,37 @@ def response_schema(context):
             )
         return {"oneOf": actions}
     return "json"
+
+def groq_chat_tools(context):
+    schema = response_schema(context)
+    actions = schema.get("oneOf", [schema])
+    tools = []
+    for action in actions:
+        properties = action["properties"]
+        name = properties["tool"]["const"] if "tool" in properties else "respond"
+        parameters = object_schema(
+            {key: value for key, value in properties.items() if key != "tool"},
+            [key for key in action["required"] if key != "tool"],
+        )
+        if name == "respond":
+            parameters["properties"]["answer"] = {
+                "type": "string",
+                "description": "The complete answer, grounded in the selected evidence. The application renders citation brackets for valid evidence_ids if the text has none.",
+            }
+            parameters["properties"]["evidence_ids"] = {
+                **properties["evidence_ids"],
+                "description": "Select only available evidence IDs that support the answer. Existing bracket citations in answer must match these IDs exactly.",
+            }
+        tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "description": "Return a final evidence-cited answer."
+                    if name == "respond"
+                    else "Request an application-validated read-only " + name + " action.",
+                    "parameters": parameters,
+                },
+            }
+        )
+    return tools

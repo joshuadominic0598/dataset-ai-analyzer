@@ -219,6 +219,7 @@ class ConnectionTests(unittest.TestCase):
                     {"id": "llama-test", "active": True},
                     {"id": "qwen-test", "active": True},
                     {"id": "whisper-test"},
+                    {"id": "canopylabs/orpheus-v1-english"},
                     {"id": "retired", "active": False},
                 ],
             ),
