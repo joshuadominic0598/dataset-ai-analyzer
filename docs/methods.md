@@ -12,9 +12,9 @@ Numeric comparison normalizes equivalent representations such as `100` and `100.
 
 ## Single-file exploration
 
-One CSV is sufficient. Subject, row meaning, goals, important fields, a target measure, a time field, and category orders guide the investigation. Subject suggestions based on field names are hypotheses; users choose the meaning.
+One CSV is sufficient and no setup answers are required. An optional question can guide the investigation. The app infers provisional identifiers, a useful measure, recognizable dates, and a possible subject from field names and values. It preserves those choices and their assumptions separately from the original user configuration. The AI uses measured evidence and read-only SQL to investigate further.
 
-All fields in the latest snapshot receive value profiles and suggested scales: identifier, nominal, ordinal, continuous, discrete, datetime, boolean, prose text, or empty. Numeric codes are not assumed to be quantities; leading zeros are preserved. Users can override any suggestion and supply an explicit ordered-label sequence. Labels outside that order are flagged. Suggestions do not establish domain semantics.
+All fields in the latest snapshot receive value profiles and suggested scales: identifier, nominal, ordinal, continuous, discrete, datetime, boolean, prose text, or empty. Numeric codes are not assumed to be quantities; leading zeros are preserved. Existing field overrides and ordered-label sequences remain supported through the configuration API; the interface asks only an optional plain-language question. Labels outside that order are flagged. Suggestions do not establish domain semantics.
 
 Numeric measures receive median, observed p95, and robust extreme screening when at least eight numeric values exist. The range is Q1 − 3×IQR to Q3 + 3×IQR; a constant middle uses a fallback spread. Zero-heavy fields with both quartiles at zero are left unscreened and labeled. IDs, categories, and ordinal ratings are excluded from this numeric screening. Rows with several screened extreme measures are counted across the full snapshot and shown with bounded examples. Exact normalized repeated rows and incomplete/repeated selected identities are also measured.
 
@@ -38,7 +38,7 @@ Newly introduced and removed fields are reported separately; they are outside sh
 
 When fields disappear and others appear, Analytic Brain compares their normalized value multisets. At least 85% overlap relative to the smaller nonempty population creates a possible-link candidate. At least 90% with an unambiguous match creates a provisional alignment. Larger-population coverage is also retained, since an expanded dataset can preserve all earlier values while adding many new ones.
 
-This is a hypothesis, not proof of equivalent meaning or units. The report says so. In setup, the user can confirm or reject the link and generate a fresh report. Confirmed decisions can link fields even when their values changed substantially. Two old fields cannot be confirmed onto the same new field in a comparison. Ambiguous automatic links are kept separate.
+This is a hypothesis, not proof of equivalent meaning or units. The report says so. The agent can investigate the relationship through source examples and SQL. Existing explicit link confirmations or rejections remain supported through the configuration API. Confirmed decisions can link fields even when their values changed substantially. Two old fields cannot be confirmed onto the same new field in a comparison. Ambiguous automatic links are kept separate.
 
 Type changes are inferred from values because CSV has no declared database schema. Whole numbers, continuous numbers, mixed fields, text, and empty fields are distinguished. A separate numeric-format finding catches a move to decimal notation without counting equivalent values as record edits. This initial implementation does not infer every semantic date, unit, or domain type.
 

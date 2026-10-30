@@ -28,7 +28,7 @@ The database uses WAL mode, a 30-second busy timeout, and a file permission of `
 ## Investigation workflow
 
 1. Parse CSV structure, infer field types, and calculate profiles.
-2. Ask about record identity, important fields, domain expectations, cloud use, and optional description search.
+2. Infer provisional identifiers, field meanings, measures, dates, and a subject from the data. Use an optional plain-language question; empty context never blocks analysis. Keep original configuration separate from the inferred analysis choices.
 3. Explore the latest file: field meanings, numeric summaries, empty cells, repeated content, unusual records, groups, relationships, and optional time coverage. With two to five files, add neighboring comparisons and a first-to-latest comparison.
 4. If AI is selected, send a bounded packet with schema, configuration, summary, prioritized findings, and labeled coverage.
 5. Ask the selected model for a brief action plan and at most two SQL queries in low effort or six in high effort. Execute them through the same read-only boundary as interactive queries. Failed queries are passed back as failures.
@@ -55,7 +55,7 @@ The Models screen loads live text-model catalogs from all four providers, offers
 
 The user selects a model context and automatic, low, or high effort. Automatic defaults local/small-context models to low. High requires at least 32k declared context. `src/reviso/investigation.py` assigns explicit evidence, output, query, and tool budgets. Context uses a conservative UTF-8 byte allowance rather than an invented token count. Evidence packets reserve space for history and tool results and label omitted facts. Schema is abbreviated with exact table names; the profile tool can retrieve more field names and profiles. Four recent messages are bounded to 600 characters each. Large tool results use a labeled prefix, while full SQL results remain in traces. Overflow fails explicitly. An additional 100,000-character provider guard remains in place. Actual provider token usage is recorded separately.
 
-`Client.configure_investigation` sets output limits and native reasoning effort only for recognized supporting model families. Ollama's selected `num_ctx` is explicit; thinking requires an advertised capability. No chain-of-thought content is requested in prompts, extracted from responses, or saved. The selected effort and investigation budgets are visible in run activity.
+`Client.configure_investigation` sets output limits and native reasoning effort only for recognized supporting model families. Ollama's selected `num_ctx` is explicit; thinking requires an advertised capability. No chain-of-thought content is requested in prompts, extracted from responses, or saved. The selected effort and investigation budgets are visible in model usage. Automatic setup choices and their assumptions are recorded in the report and execution trace.
 
 Cloud consent is checked both against the report's saved setup and the dataset's current setup for cloud chat and cloud text indexing. Revoking current consent blocks further cloud investigation of an earlier report. Ollama analysis and Ollama embeddings do not need cloud permission. The deterministic evidence-only report remains usable too.
 

@@ -39,7 +39,7 @@ For a useful comparison, hold source snapshots, configuration, manifest, prompt 
 
 ## Local operational traces
 
-Run activity shows the latest 50 runs in the selected dataset, including report generation, chat, SQL, and indexing. Every run has a durable ID and lifecycle state. A server restart marks unfinished runs as failed rather than leaving them permanently running.
+Model usage shows the latest 50 runs in the selected dataset, including report generation, chat, SQL, and indexing. Every run has a durable ID and lifecycle state. A server restart marks unfinished runs as failed rather than leaving them permanently running.
 
 Events record observable actions: measurements, model calls, plans, SQL and results, text indexing progress, semantic search results, reference checks through successful completion, publication, and failure. Source fingerprints and the shared prompt hash make the inputs identifiable. Prompt definitions live in `src/reviso/agent/prompts.py`; private reasoning is neither requested nor stored.
 

@@ -4,7 +4,7 @@
 
 Analytic Brain explores a single dataset or compares two to five versions, with an AI data analyst that can query the underlying records and cite its evidence. The local black-and-orange workspace combines reproducible measurements with guided analysis, a blue brain identity, and an analyst launcher at the bottom right.
 
-Upload one CSV to begin. Tell the analyst what a row represents and what you want to learn, or discuss those questions in chat before generating a report. Explore field meanings, missing values, ranges, unusual records, groups, relationships, and time coverage. Adding more versions enables record changes and possible field renames. Conversations remain linked to saved inputs.
+Upload one CSV to begin. Use the optional question above **Generate report**, or leave it blank and start the analysis. The agent infers useful starting points from the fields and records; you can refine its interpretation in chat. Explore field meanings, missing values, ranges, unusual records, groups, relationships, and time coverage. Adding more versions enables record changes and possible field renames. Conversations remain linked to saved inputs.
 
 ## Run locally
 
@@ -28,19 +28,19 @@ The app stores snapshots, reports, conversations, and operational traces in `.re
 
 ## What you can do
 
-- **Explore one file.** See suggested identifiers, nominal categories, ordinal ratings, numeric measures, dates, booleans, and text. Correct field meanings or supply an explicit category order in setup. Profiles cover the full file; model context and displayed examples are bounded.
-- **Guide the analysis.** Choose a subject such as orders, doctors, claims, prices, supply chain, or time series. Clarify row meaning, goals, important fields, a numeric measure, and an optional date field. The analyst asks domain-specific follow-ups.
+- **Explore one file.** See suggested identifiers, nominal categories, ordinal ratings, numeric measures, dates, booleans, and text. Field meanings are inferred automatically, with uncertain interpretations labeled as assumptions. Profiles cover the full file; model context and displayed examples are bounded.
+- **Guide the analysis.** The analyst can explore orders, doctors, claims, prices, supply chain, time series, and other data. Describe a goal in ordinary language if you have one. The analyst chooses initial measures, dates, and useful checks, and may ask a short follow-up after presenting findings.
 - **Compare a timeline.** Inspect each neighboring pair and a separate first-to-latest comparison. Original source bytes and SHA-256 fingerprints are preserved.
-- **Follow individual records.** Choose one or several identity columns. Repeated or missing identifiers remain visible, with incomplete matching labeled explicitly. Without a usable identity, Analytic Brain compares row content without inventing edit counts.
+- **Follow individual records.** Identifier-like columns are considered automatically using their names and first-snapshot completeness and uniqueness; the report records any provisional choice. Repeated or missing identifiers remain visible, with incomplete matching labeled explicitly. Without a usable identity, Analytic Brain compares row content without inventing edit counts.
 - **Find changes worth investigating.** See record growth, removals, edits, completeness changes, new labels, type changes, numeric formatting, and unusual values. Flags suggest follow-up checks; they do not certify that records are wrong.
-- **Resolve ambiguous field names.** Similar values can suggest a rename. Confirm the shared meaning or keep the fields separate in setup, then generate a new report.
-- **Chat with evidence.** Chat is available as soon as one file is uploaded, including before setup or a final report. A connected model can clarify your goals, inspect field profiles, investigate with bounded read-only SQL, and explain results with citations. Conversations remain scoped to the saved report. Evidence-only mode offers a clearly labeled evidence lookup and direct SQL.
+- **Resolve ambiguous field names.** Similar values can suggest a rename. Strong, unambiguous value matches are linked provisionally and uncertainty stays visible in the report. Discuss unclear meaning with the agent.
+- **Chat with evidence.** Chat is available as soon as one file is uploaded, including before setup or a final report. A connected model can clarify your goals, inspect field profiles, investigate with bounded read-only SQL, and explain results with citations. Conversations remain scoped to the saved report. Chat immediately shows sending confirmation and an animated response indicator, updates during queries and provider waits, and keeps failed questions ready to retry. Evidence-only mode offers a clearly labeled evidence lookup and direct SQL.
 - **Search descriptions by meaning.** Analytic Brain suggests prose-like columns and asks before embedding them. Optional vectors live in SQLite. Numeric and category-only workflows do not need an embedding service.
 - **Inspect and export.** Read field profiles, query original version tables, inspect model/tool traces, leave run feedback, and export HTML, Markdown, or complete JSON evidence.
 
 ## Connect models
 
-Open **Models** in the sidebar to configure four connections. Save an API key for a cloud provider or use its server environment variable. Choose **Refresh models** to load the provider's current text-model catalog, then select a model in the investigation bar. A custom model ID remains available for models the catalog does not classify. Connections can be configured before importing a dataset.
+Open **Models** in the sidebar to configure four connections. Save an API key for a cloud provider or use its server environment variable. Choose **Refresh models** to load the provider's current text-model catalog, then select a model in the vertically arranged investigation controls. A custom model ID remains available for models the catalog does not classify. Connections can be configured before importing a dataset.
 
 **Ask Agent** has its own **Connection** and **Model** selectors. Connections saved in **Models** become available in the chat selector immediately. Choose a listed model or **Custom model ID**, use **Models** in the chat panel to refresh its catalog, or open **Manage connections** to add or update provider settings. Chat and the investigation bar share the selection; changes apply to the next request. Selection is locked while an investigation runs. Cloud analysis still requires dataset permission.
 
@@ -55,15 +55,23 @@ Ollama is the initial selected provider and defaults to **`qwen3:8b`**. Start Ol
 
 Saved defaults and keys apply to new runs; each run pins the connection settings it starts with. Secrets are written atomically to `.reviso/connections.json` with mode `0600`. This file is local and excluded from Git, but is **not encrypted** by Analytic Brain. Saved keys never appear in API responses, reports, or browser storage. A blank key keeps the configured key; **Remove saved key** removes the saved copy while preserving any environment configuration. [`configuration/env.example`](configuration/env.example) lists optional environment variables; `.env` is not loaded automatically.
 
-Enable cloud analysis in **Dataset setup** before using OpenAI, Gemini, or Groq with dataset evidence. **Evidence only** remains available as a separate mode with no model calls.
+Enable the dataset permission above **Generate report** or in **Ask Agent** before using OpenAI, Gemini, or Groq with dataset evidence. Local Ollama needs no cloud permission. **Evidence only** remains available as a separate mode with no model calls.
 
-The Gemini and Groq connection cards let you record a free or paid API-account tier. The same adapter handles either tier. This label does not enforce a free budget, change your provider's billing, or establish that every listed model is available for free. The provider controls model access and quota. Quota failures appear in run activity without switching providers. Cloud costs remain **not priced**; local Ollama calls record no API token fee, excluding your hardware costs. Token counts come from provider responses.
+The Gemini and Groq connection cards let you record a free or paid API-account tier. The same adapter handles either tier. This label does not enforce a free budget, change your provider's billing, or establish that every listed model is available for free. The provider controls model access and quota. Quota failures appear in model usage without switching providers. Cloud costs remain **not priced**; local Ollama calls record no API token fee, excluding your hardware costs. Token counts come from provider responses.
 
-For optional description search, select text fields, an Ollama, OpenAI, or Gemini embedding connection, and its embedding model ID in setup. Local Ollama embeddings do not require cloud consent; cloud embeddings do. Save, generate a report, then choose **Build text index**. Groq chat can use a separate embedding connection. An embedding build is resumable and does not rebuild completed cells. The chat-model picker excludes known embedding-only models; enter the embedding model ID in the separate text-search setup.
+For optional description search, select text fields, an Ollama, OpenAI, or Gemini embedding connection, and its embedding model ID in setup. Local Ollama embeddings do not require cloud consent; cloud embeddings do. Open the optional description-search section, select **Generate report**, then choose **Build text index**. Groq chat can use a separate embedding connection. An embedding build is resumable and does not rebuild completed cells. The chat-model picker excludes known embedding-only models; enter the embedding model ID in the separate text-search setup.
 
 Official integration references: [OpenAI text generation](https://developers.openai.com/api/docs/guides/text), [Gemini compatibility](https://ai.google.dev/gemini-api/docs/openai), [Groq compatibility](https://console.groq.com/docs/openai), [OpenAI embeddings](https://developers.openai.com/api/reference/resources/embeddings/methods/create). Account terms, model access, and usage limits remain provider-controlled.
 
 Live model catalogs use [OpenAI models](https://developers.openai.com/api/reference/resources/models/methods/list), [Gemini models](https://ai.google.dev/api/models), [Groq models](https://console.groq.com/docs/models), and [Ollama installed models](https://docs.ollama.com/api/tags). The local default is [Qwen3 8B](https://ollama.com/library/qwen3:8b).
+
+## Rate limits and retries
+
+Cloud calls using the same saved credential share a queue, including calls from different datasets or selected models. Free or automatic account settings use a short pacing interval. The client reads provider request/token allowance headers when available and waits for their reported reset before another call would exceed the remaining allowance. Input-token checks use conservative estimates; providers remain authoritative and other apps using the same account can consume capacity too.
+
+A rate-limited request is attempted at most four times in total. The client respects `Retry-After` (including HTTP dates), or uses increasing waits of 15, 30, and 60 seconds when it is absent. The queue and cooldown have a three-minute waiting budget per model request. A longer daily/quota reset ends visibly instead of retrying early. Waiting and failed attempts appear in the progress panel and **Model usage**. There is no automatic switch to another model, provider, or paid tier. These controls apply to cloud connections; local Ollama has no cloud quota queue.
+
+Groq chat uses registered function calls for application-validated SQL, profiles, optional semantic search, and final cited answers. Report planning and interpretation use JSON mode. Provider behavior is documented in [Groq tool calling](https://console.groq.com/docs/tool-use/local-tool-calling), [structured output](https://console.groq.com/docs/structured-outputs), and [rate limits](https://console.groq.com/docs/rate-limits).
 
 ## Choose investigation effort
 
@@ -74,9 +82,15 @@ The investigation bar offers **Automatic**, **Low**, and **High**, plus a model-
 | Low | Up to 2 | Up to 2, then a final answer | Up to 2,000 tokens, reduced for very small contexts |
 | High | Up to 6 | Up to 6, then a final answer | Up to 8,000 tokens |
 
-A report interpretation or final chat answer rejected by the evidence checks gets one additional correction call. The rejection remains visible in run activity; a second failure publishes no answer.
+A report interpretation or final chat answer rejected by the evidence checks gets one additional correction call. The rejection remains visible in model usage; a second failure publishes no answer.
 
 High requires a selected context of at least 32,768 tokens and sufficient hardware/provider support. Effort changes the evidence and tool budgets for every model. Native reasoning controls are also used for recognized supported OpenAI/Gemini/Groq families and Ollama models advertising thinking capability. Local Ollama calls use stage-specific structured response formats to require citations and restrict them to available evidence. Independent validation still checks their use. The app does not request, display, or store private reasoning. Ollama receives the selected context size. Unsupported model families still receive the investigation budget without unsupported reasoning parameters. See [OpenAI reasoning](https://developers.openai.com/api/docs/guides/reasoning), [Gemini compatibility](https://ai.google.dev/gemini-api/docs/openai), [Groq reasoning](https://console.groq.com/docs/reasoning), and [Ollama chat](https://docs.ollama.com/api/chat).
+
+## Add or switch datasets
+
+Choose **New dataset** in the sidebar, enter a name, and select **One file** for a single CSV or **Multiple versions** for a comparison. Pick or drop your files, edit the version labels, and use the up/down buttons to put the earliest snapshot first before choosing **Save snapshots**. A blank dataset name uses the first filename. Selecting files does not save them until you submit.
+
+Use the workspace selector at the top left to switch between saved datasets. Each dataset keeps its own files, setup, report, and conversation. **Add data** lets you append versions to the current dataset or create a new named dataset. If the current dataset already has five versions, the upload dialog starts with **New dataset** so a separate CSV can still be imported. Validation errors appear inside the dialog; a failed multi-file upload retains the unsaved files for retry in the same dataset.
 
 ## Upload limits
 
@@ -134,7 +148,7 @@ Run both evaluators first to create their report fixtures. The interface checks 
 flowchart LR
     A[CSV snapshots or file watcher] --> B[Immutable SQLite versions]
     B --> C[Field profiles and measured comparisons]
-    C --> D[Setup questions and domain context]
+    C --> D[Automatic analysis choices and optional question]
     D --> E[Bounded AI investigation plan]
     E --> F[Read-only SQL and approved text search]
     F --> G[Report with evidence references]
