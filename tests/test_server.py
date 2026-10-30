@@ -117,6 +117,20 @@ class ServerTests(unittest.TestCase):
         self.assertIn("dataset analysis", export_markdown(final))
         self.assertIn("Analytic Brain", export_html(final))
 
+    def test_report_runs_immediately_without_setup_answers(self):
+        dataset = self.dataset()
+        self.upload(dataset, "Only file", b"id,price\n1,10\n2,20\n")
+        status, _, created = self.request(
+            "/api/report", {"dataset": dataset, "provider": "offline"}
+        )
+        self.assertEqual(status, 202)
+        self.assertEqual(self.wait(created["run_id"])["status"], "completed")
+        view = self.request("/api/dataset?dataset=" + dataset)[2]
+        self.assertFalse(view["report"]["draft"])
+        self.assertFalse(view["report_stale"])
+        self.assertEqual(view["report"]["analysis_config"]["target_column"], "price")
+        self.assertEqual(view["report"]["config"]["analysis_goal"], "")
+
     def test_upload_metadata_and_size_protocol(self):
         limits = self.request("/api/state")[2]["limits"]
         self.assertEqual(limits["versions"], 5)

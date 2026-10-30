@@ -6,9 +6,9 @@ from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 
 from .data import canonical, now, numeric, uid
-from .exploration import QUESTIONS, domain_suggestions, explore, infer_role
+from .exploration import QUESTIONS, domain_suggestions, explore, infer_analysis_config, infer_role
 
-METHOD_VERSION = "analytic-brain-0.2.0"
+METHOD_VERSION = "analytic-brain-0.2.1"
 
 def discover(store, dataset_id):
     versions = store.versions(dataset_id)
@@ -543,11 +543,10 @@ def build_report(store, dataset_id, require_setup=True):
     versions = store.versions(dataset_id)
     if not versions:
         raise ValueError("Upload at least one dataset to analyse.")
-    if require_setup and not dataset["config"]["setup_complete"]:
-        raise ValueError("Complete the setup questions before creating a report.")
     rows = [store.rows(dataset_id, v) for v in versions]
+    analysis_config, assumptions = infer_analysis_config(versions, rows, dataset["config"])
     comparisons = [
-        compare(versions[i - 1], versions[i], rows[i - 1], rows[i], dataset["config"])
+        compare(versions[i - 1], versions[i], rows[i - 1], rows[i], analysis_config)
         for i in range(1, len(versions))
     ]
     findings = []
@@ -556,14 +555,14 @@ def build_report(store, dataset_id, require_setup=True):
             f["id"] = "F" + str(len(findings) + 1).zfill(3)
             findings.append(f)
         del pair["findings"]
-    exploration = explore(versions[-1], rows[-1], dataset["config"])
+    exploration = explore(versions[-1], rows[-1], analysis_config)
     findings.extend(exploration.pop("findings"))
     priority = {"attention": 0, "review": 1, "improved": 2, "info": 3}
     findings.sort(key=lambda f: (priority[f["severity"]], not f["important"], -f["to"], f["id"]))
     baseline = (
         comparisons[0]
         if len(versions) == 2
-        else compare(versions[0], versions[-1], rows[0], rows[-1], dataset["config"])
+        else compare(versions[0], versions[-1], rows[0], rows[-1], analysis_config)
         if len(versions) > 1
         else None
     )
@@ -575,14 +574,16 @@ def build_report(store, dataset_id, require_setup=True):
         "created_at": now(),
         "method_version": METHOD_VERSION,
         "config": dataset["config"],
+        "analysis_config": analysis_config,
+        "analysis_assumptions": assumptions,
         "versions": versions,
         "mode": "exploration" if len(versions) == 1 else "exploration_and_comparison",
-        "draft": not dataset["config"]["setup_complete"],
+        "draft": not require_setup and not dataset["config"]["setup_complete"],
         "comparisons": comparisons,
         "baseline": baseline,
         "findings": findings,
         "exploration": exploration,
-        "clarifications": QUESTIONS[dataset["config"]["dataset_type"]],
+        "clarifications": QUESTIONS[analysis_config["dataset_type"]],
         "summary": {
             "versions": len(versions),
             "first_records": versions[0]["row_count"],
@@ -592,7 +593,7 @@ def build_report(store, dataset_id, require_setup=True):
             "fields": len(versions[-1]["columns"]),
         },
         "plan": [
-            "Clarify dataset type, row meaning, analysis goals, time field, and measures.",
+            "Infer the dataset subject, identifiers, field meanings, time field, and useful measures; record assumptions and use any optional question.",
             "Profile all fields and records, suggest measurement scales, and inspect missing values and unusual records.",
             "Investigate group differences, numeric relationships, and time coverage where applicable.",
         ]

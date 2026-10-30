@@ -308,7 +308,7 @@ class Client:
         if len(content) > 100_000 or (
             execution
             and len(content.encode("utf-8")) + len(instructions.encode("utf-8"))
-            > execution["input_bytes"] + 1800
+            > execution["input_bytes"] + execution.get("instruction_bytes", 1800)
         ):
             raise ProviderError("The selected evidence exceeded the model context budget.")
         output = execution["output_tokens"] if execution else 3000

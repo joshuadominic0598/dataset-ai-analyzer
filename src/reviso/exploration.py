@@ -160,6 +160,103 @@ def domain_suggestions(columns):
         if score
     ][:3]
 
+def infer_analysis_config(versions, rows, config):
+    effective = dict(config)
+    latest = versions[-1]
+    columns = latest["columns"]
+    roles = {
+        column: infer_role(
+            column,
+            latest["profile"][column],
+            [row[column] for row in rows[-1] if row[column] is not None],
+            config,
+        )[0]
+        for column in columns
+    }
+    assumptions = []
+    if effective["dataset_type"] == "unknown":
+        subjects = domain_suggestions(columns)
+        if subjects:
+            effective["dataset_type"] = subjects[0]["type"]
+            assumptions.append(
+                "The dataset subject is provisionally inferred as "
+                + subjects[0]["type"].replace("_", " ")
+                + " from field names; this is not a confirmed business meaning."
+            )
+    if not effective["identity"]:
+        common = set(versions[0]["columns"]).intersection(
+            *(set(version["columns"]) for version in versions)
+        )
+        candidates = [
+            column
+            for column in versions[0]["columns"]
+            if column in common
+            and re.search(
+                r"(^id$|_id$|^id_|identifier|uuid|^npi$|^(?:customer|record|order|claim|patient|product|shipment)id$)",
+                column,
+                re.I,
+            )
+            and versions[0]["row_count"] > 0
+            and versions[0]["profile"][column]["missing"] == 0
+            and versions[0]["profile"][column]["unique_values"] == versions[0]["row_count"]
+        ]
+        preferred = [
+            column
+            for column in candidates
+            if column.lower() in ("id", "record_id", "recordid", "uuid")
+        ]
+        if len(preferred) == 1 or len(candidates) == 1:
+            effective["identity"] = preferred or candidates
+            assumptions.append(
+                "Records are provisionally matched using "
+                + ", ".join(effective["identity"])
+                + ", based on its identifier-like name and complete, unique values in the first snapshot. Later repetitions and gaps are still checked."
+            )
+    mentioned = [
+        column
+        for column in columns
+        if re.search(
+            r"(?<!\w)" + re.escape(column) + r"(?!\w)", config.get("analysis_goal", ""), re.I
+        )
+    ]
+    if not effective["important"] and mentioned:
+        effective["important"] = mentioned[:12]
+        assumptions.append(
+            "Fields named in your question receive priority: "
+            + ", ".join(effective["important"])
+            + "."
+        )
+    if not effective.get("target_column"):
+        measures = [
+            column
+            for column in columns
+            if roles[column] in ("continuous", "discrete") and column not in effective["identity"]
+        ]
+        preferred = [column for column in mentioned if column in measures]
+        preferred += [
+            column
+            for column in measures
+            if re.search(r"price|amount|revenue|cost|income|balance", column, re.I)
+        ]
+        selected = next(iter(preferred or measures), "")
+        if selected:
+            effective["target_column"] = selected
+            assumptions.append(
+                "Group summaries initially focus on "
+                + selected
+                + ". This is an analysis choice, not a confirmed business outcome; units may need clarification."
+            )
+    if not effective.get("date_column"):
+        dates = [column for column in columns if roles[column] == "datetime"]
+        if len(dates) == 1:
+            effective["date_column"] = dates[0]
+            assumptions.append(
+                "Time coverage uses "
+                + dates[0]
+                + " based on recognizable date values. Ambiguous dates are not guessed."
+            )
+    return effective, assumptions
+
 def _profile_fields(columns, rows, facts, config, add):
     roles, fields = {}, {}
     numeric_cache = {}
@@ -542,14 +639,14 @@ def explore(version, rows, config):
         "The dataset at a glance",
         "The full snapshot was profiled. Record examples are bounded and do not represent an exhaustive review by the model.",
         {"records": len(rows), "fields": len(columns), "version": ordinal},
-        action="Confirm what a row represents and the question you want answered.",
+        action="Explore the findings now; optionally tell the agent what a row represents or what you want to learn.",
     )
     fields, roles, numeric_cache = _profile_fields(columns, rows, facts, config, add)
     add(
         "field_meanings",
         "info",
         "Suggested field meanings",
-        "Categories, ratings, identifiers, dates, and quantities need different analysis. Suggestions can be corrected in dataset setup.",
+        "Categories, ratings, identifiers, dates, and quantities need different analysis. These meanings are inferred automatically; discuss any corrections or domain context with the agent.",
         {"role_counts": dict(Counter(roles.values())), "roles": roles},
         action="Confirm nominal and ordinal meanings, numeric codes, and any ordered labels.",
         assessment="hypothesis",

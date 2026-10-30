@@ -37,18 +37,57 @@ class AnalysisTests(unittest.TestCase):
             result["passed"], result["total"], [c for c in result["checks"] if not c["passed"]]
         )
 
-    def test_requires_setup_but_one_file_is_enough(self):
+    def test_no_setup_or_question_is_required_and_one_file_is_enough(self):
         with self.assertRaisesRegex(ValueError, "at least one"):
             build_report(self.store, self.id)
         self.store.ingest(self.id, "One", b"x\n1\n")
-        with self.assertRaisesRegex(ValueError, "setup"):
-            build_report(self.store, self.id)
-        self.store.configure(self.id, {"setup_complete": True})
         report = build_report(self.store, self.id)
         self.assertEqual(report["mode"], "exploration")
+        self.assertFalse(report["draft"])
         self.assertEqual(report["comparisons"], [])
         self.assertIsNone(report["baseline"])
         self.assertEqual(report["exploration"]["records"], 1)
+
+    def test_automatic_analysis_selects_useful_fields_without_changing_user_settings(self):
+        content = "id,price,sale_date,region,rating\n" + "".join(
+            f"{i},{i * 10},2026-01-{i:02d},{'North' if i % 2 else 'South'},{'Low' if i % 2 else 'High'}\n"
+            for i in range(1, 13)
+        )
+        self.store.ingest(self.id, "Only file", content.encode())
+        report = build_report(self.store, self.id)
+        self.assertEqual(report["analysis_config"]["identity"], ["id"])
+        self.assertEqual(report["analysis_config"]["target_column"], "price")
+        self.assertEqual(report["analysis_config"]["date_column"], "sale_date")
+        self.assertEqual(report["exploration"]["fields"]["rating"]["role"], "ordinal")
+        self.assertEqual(report["exploration"]["time_summary"]["valid_dates"], 12)
+        self.assertTrue(report["exploration"]["group_summaries"])
+        self.assertTrue(report["analysis_assumptions"])
+        self.assertFalse(report["draft"])
+        self.assertEqual(report["config"]["identity"], [])
+        self.assertEqual(self.store.dataset(self.id)["config"], report["config"])
+        self.assertFalse(report["config"]["cloud_allowed"])
+
+    def test_automatic_identity_keeps_later_missing_and_repeated_records_visible(self):
+        self.store.ingest(self.id, "Before", b"id,price\n1,10\n2,20\n3,30\n")
+        self.store.ingest(self.id, "After", b"id,price\n1,10\n2,20\n2,99\n,30\n")
+        report = build_report(self.store, self.id)
+        movement = report["comparisons"][0]["movement"]
+        self.assertEqual(movement["mode"], "record_identity")
+        self.assertEqual(movement["missing_identity_after"], 1)
+        self.assertEqual(movement["ambiguous_identities"], 1)
+        self.assertFalse(movement["exact"])
+
+    def test_automatic_analysis_respects_overrides_and_leaves_ambiguous_dates_unselected(self):
+        self.store.ingest(
+            self.id, "Only file", b"id,cost,price,date\n1,10,20,01/02/2026\n2,15,30,02/03/2026\n"
+        )
+        self.store.configure(
+            self.id, {"target_column": "cost", "column_roles": {"price": "nominal"}}
+        )
+        report = build_report(self.store, self.id)
+        self.assertEqual(report["analysis_config"]["target_column"], "cost")
+        self.assertEqual(report["exploration"]["fields"]["price"]["role"], "nominal")
+        self.assertIsNone(report["exploration"]["time_summary"])
 
     def test_without_identity_does_not_invent_edits(self):
         report = self.prepare(b"a,b\nx,1\nx,1\ny,2\n", b"a,b\nx,1\nx,1\ny,3\n")

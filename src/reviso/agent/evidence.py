@@ -1,26 +1,28 @@
 """Bounded evidence packets, tool results, and publication checks."""
 
+import json
 import re
 from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal, InvalidOperation
 
-from ..data import dump
 from ..investigation import settings, size
 from ..providers import ProviderError
+from .prompts import POLICY, PROMPTS
 
 def packet(report, execution=None):
     execution = execution or settings("ollama")
     budget = execution["input_bytes"]
     # Keep room for history and cumulative tool results as well as instructions.
     limit = int(budget * 0.62)
+    config = report.get("analysis_config", report["config"])
     schema, all_columns = [], []
     for version in report["versions"]:
         names = list(
             dict.fromkeys(
                 [
                     c
-                    for c in report["config"]["identity"]
-                    + report["config"]["important"]
-                    + [report["config"].get("target_column"), report["config"].get("date_column")]
+                    for c in config["identity"]
+                    + config["important"]
+                    + [config.get("target_column"), config.get("date_column")]
                     if c in version["columns"]
                 ]
                 + version["columns"]
@@ -44,7 +46,6 @@ def packet(report, execution=None):
             if size(proposed) <= budget * 0.25:
                 schema = proposed
                 break
-    config = report["config"]
     context = {
         "dataset": report["dataset_name"],
         "report_id": report["id"],
@@ -68,11 +69,12 @@ def packet(report, execution=None):
         "summary": report["summary"],
         "draft": report.get("draft", False),
         "clarifications": report.get("clarifications", []),
+        "analysis_assumptions": [note[:120] for note in report.get("analysis_assumptions", [])[:2]],
         "investigation": execution,
         "findings": [],
         "limitations": [
             "Field meanings are suggestions until confirmed. Associations do not establish causation.",
-            "Full-file measurements are saved. The model sees bounded evidence and source examples; tools can inspect further.",
+            "Full-file measurements and complete inference notes are saved. The model sees bounded evidence and abbreviated assumptions; tools can inspect further.",
         ],
     }
     # User context is bounded too; large category-order settings remain in saved evidence.
@@ -132,6 +134,13 @@ def packet(report, execution=None):
 
 def prepare(client, trace, provider, model, options):
     execution = settings(provider, model, options)
+    instruction_bytes = max(len((POLICY + prompt).encode()) for prompt in PROMPTS.values())
+    execution["instruction_bytes"] = instruction_bytes
+    execution["input_bytes"] -= max(instruction_bytes - 1800, 0)
+    if execution["input_bytes"] < 512:
+        raise ProviderError(
+            "The selected context is too small for the analyst instructions. Select at least 8k context."
+        )
     if hasattr(client, "configure_investigation"):
         client.configure_investigation(execution)
     trace.event("investigation_settings", execution)
@@ -179,7 +188,7 @@ def _numbers_supported(text, evidence):
 
     # A narrow guard, not a semantic factuality grade. Labels/IDs are removed from prose first.
     text = re.sub(r"\[(?:F\d+|E\d+|Q\d+|S\d+)\]", "", text)
-    available = numbers(dump(evidence))
+    available = numbers(json.dumps(evidence, ensure_ascii=False))
     for claimed in numbers(text) - available:
         try:
             value = Decimal(claimed)

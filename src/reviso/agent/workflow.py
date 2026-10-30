@@ -25,6 +25,16 @@ def generate_report(
     store, dataset_id, trace, provider="offline", model=None, client_factory=Client, options=None
 ):
     report = build_report(store, dataset_id)
+    trace.event(
+        "analysis_setup",
+        {
+            "mode": "automatic",
+            "assumptions": report["analysis_assumptions"],
+            "identity": report["analysis_config"]["identity"],
+            "measure": report["analysis_config"]["target_column"],
+            "time_field": report["analysis_config"]["date_column"],
+        },
+    )
     report["run_id"] = trace.id
     trace.payload["report_id"] = report["id"]
     trace.payload["source_hashes"] = [v["digest"] for v in report["versions"]]
@@ -170,6 +180,8 @@ def chat(
             raise ValueError("Allow cloud analysis in setup before using a provider.")
         client = client_factory(provider, model, trace.event)
         execution = prepare(client, trace, provider, model, options)
+        context = packet(report, execution)
+        known = {finding["id"]: finding for finding in context["findings"]}
         context.update(
             question=question,
             response_kind="chat",

@@ -69,7 +69,9 @@ def export_markdown(report):
             "```",
             "",
         ]
-    lines += ["## Limits", ""] + ["- " + line for line in report["limitations"]]
+    lines += ["## Limits", ""] + [
+        "- " + line for line in report.get("analysis_assumptions", []) + report["limitations"]
+    ]
     return "\n".join(lines)
 
 def _finding_html(finding):
@@ -137,5 +139,8 @@ def export_html(report):
         interpretation=_interpretation_html(report["ai"]),
         findings=findings,
         versions=versions,
-        limitations="".join(f"<li>{html.escape(limit)}</li>" for limit in report["limitations"]),
+        limitations="".join(
+            f"<li>{html.escape(limit)}</li>"
+            for limit in report.get("analysis_assumptions", []) + report["limitations"]
+        ),
     )

@@ -158,6 +158,48 @@ class ExplorationTests(unittest.TestCase):
         self.store.configure(empty, {"setup_complete": True})
         self.assertEqual(build_report(self.store, empty)["exploration"]["record_samples"], [])
 
+    def test_adjacent_sql_numbers_are_checked_as_separate_values(self):
+        evidence = {"Q1": {"columns": ["id", "price"], "rows": [[12, 900]]}}
+        _numbers_supported("The record is 12 and its price is 900 [Q1].", evidence)
+        with self.assertRaisesRegex(ProviderError, "number absent"):
+            _numbers_supported("The price is 12900 [Q1].", evidence)
+
+    def test_agent_investigates_without_a_question_or_saved_setup(self):
+        identifier = self.store.create_dataset("No setup")["id"]
+        self.store.ingest(identifier, "One file", b"id,price,region\n1,10,North\n2,20,South\n")
+        FakeClient.answers = [
+            {
+                "plan": ["Inspect prices by region"],
+                "queries": [
+                    {
+                        "purpose": "Inspect source records",
+                        "sql": "SELECT id, price FROM PLACEHOLDER LIMIT 30",
+                    }
+                ],
+            },
+            lambda context: {
+                "summary": "Source records are available for review.",
+                "insights": [
+                    {
+                        "evidence_ids": ["Q1"],
+                        "interpretation": "Inspect the recorded prices.",
+                        "next_step": "Review source context if needed.",
+                    }
+                ],
+            },
+        ]
+        table = self.store.versions(identifier)[0]["table"]
+        FakeClient.answers[0]["queries"][0]["sql"] = f'SELECT id, price FROM "{table}" LIMIT 30'
+        trace = Trace(self.store, identifier, "report", "ollama", "qwen3:8b")
+        generate_report(self.store, identifier, trace, "ollama", "qwen3:8b", FakeClient)
+        report = self.store.report(identifier)
+        self.assertFalse(report["draft"])
+        self.assertEqual(FakeClient.calls[0]["config"]["analysis_goal"], "")
+        self.assertEqual(FakeClient.calls[0]["config"]["target_column"], "price")
+        self.assertTrue(FakeClient.calls[0]["analysis_assumptions"])
+        self.assertEqual(report["ai"]["query_results"][0]["result"]["rows"], [[1, 10], [2, 20]])
+        self.assertEqual(len(FakeClient.calls), 2)
+
     def test_chat_before_setup_builds_evidence_and_can_clarify(self):
         self.store.configure(self.id, {"setup_complete": False, "dataset_type": "unknown"})
         FakeClient.answers = [
