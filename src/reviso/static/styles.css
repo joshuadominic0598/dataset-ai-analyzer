@@ -3269,3 +3269,70 @@ dialog p,
     width: 100%;
   }
 }
+
+.chat-response-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  margin: 0 20px 12px;
+  padding: 14px 16px;
+  border: 1px solid #385c85;
+  border-radius: 12px;
+  background: #102239;
+  color: #deecff;
+}
+.chat-response-status .brain-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.chat-response-copy {
+  flex: 1;
+  min-width: 0;
+}
+.chat-response-copy b {
+  font-size: 13px;
+}
+.chat-response-copy p {
+  margin: 4px 0 0;
+  color: #b8cce6;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.chat-typing {
+  display: flex;
+  gap: 4px;
+}
+.chat-typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #75b4ff;
+  animation: agent-typing 1.2s ease-in-out infinite;
+}
+.chat-typing i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.chat-typing i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes agent-typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-typing i {
+    animation: none;
+    opacity: 1;
+  }
+}

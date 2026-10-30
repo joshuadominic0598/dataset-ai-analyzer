@@ -37,6 +37,7 @@ const state = {
   refreshingModels: false,
   uploading: false,
   lastChatRun: null,
+  chatPending: null,
 };
 let toastTimer;
 
@@ -918,6 +919,12 @@ async function startJob(kind, question = "") {
       "Select a supported model context of 32k or more for high effort.",
     );
   state.busy = true;
+  if (kind === "chat")
+    state.chatPending = {
+      dataset: id,
+      accepted: false,
+      detail: "Sending your question…",
+    };
   setBusy(true);
   try {
     if (kind === "report") await saveAnalysisPreferences(id);
@@ -928,6 +935,11 @@ async function startJob(kind, question = "") {
       question,
       investigation,
     });
+    if (state.chatPending?.dataset === id) {
+      state.chatPending.accepted = true;
+      state.chatPending.detail = "Question sent. Analysing your data…";
+      renderChatPending();
+    }
     const run = await waitForRun(run_id, id);
     if (run.status === "failed")
       throw new Error(run.payload.error || "Investigation failed.");
@@ -952,6 +964,7 @@ async function startJob(kind, question = "") {
     return run;
   } finally {
     state.busy = false;
+    state.chatPending = null;
     setBusy(false);
   }
 }
@@ -964,8 +977,26 @@ function setBusy(busy) {
   renderPending();
   $("progress-title").textContent = "Investigating your dataset";
   $("progress-detail").textContent = "Collecting evidence…";
-  $("chat-run-status").hidden = !busy;
-  $("chat-run-status").textContent = "Analysing your data…";
+  $("chat-send").textContent = busy && state.chatPending ? "…" : "↑";
+  $("chat-send").setAttribute(
+    "aria-label",
+    busy && state.chatPending ? "Agent is responding" : "Send question",
+  );
+  $("chat-form").setAttribute("aria-busy", String(busy && !!state.chatPending));
+  renderChatPending();
+}
+
+function renderChatPending() {
+  const pending = state.chatPending;
+  const visible = !!pending && pending.dataset === state.id;
+  const wasHidden = $("chat-run-status").hidden;
+  $("chat-run-status").hidden = !visible;
+  if (!visible) return;
+  $("chat-run-heading").textContent = pending.accepted
+    ? "Agent is responding"
+    : "Sending your question";
+  $("chat-run-detail").textContent = pending.detail;
+  if (wasHidden) $("chat-messages").scrollTop = $("chat-messages").scrollHeight;
 }
 
 async function waitForRun(id, datasetId) {
@@ -989,7 +1020,9 @@ async function waitForRun(id, datasetId) {
               ? "Waiting for this connection's active request…"
               : `Respecting provider limits · retrying in about ${Math.ceil(latest.detail.seconds)} seconds…`
             : latest.kind === "model_call"
-              ? "Model response received. Checking evidence…"
+              ? latest.detail.status === "failed"
+                ? "The connection needs another attempt…"
+                : "Checking the agent's response against the evidence…"
               : latest.kind === "sql"
                 ? "Inspecting a read-only query result…"
                 : latest.kind === "embed"
@@ -998,7 +1031,10 @@ async function waitForRun(id, datasetId) {
                     " · " +
                     (latest.detail.actions?.[0] ||
                       "Following the saved investigation plan.");
-      $("chat-run-status").textContent = $("progress-detail").textContent;
+      if (state.chatPending?.dataset === datasetId && latest) {
+        state.chatPending.detail = $("progress-detail").textContent;
+        renderChatPending();
+      }
     }
     if (run.status !== "running") return run;
     await new Promise((resolve) => setTimeout(resolve, 900));
@@ -1235,6 +1271,7 @@ async function loadDemo() {
 
 function openChat(question = "") {
   $("chat-panel").hidden = false;
+  renderChatPending();
   $("chat-open").hidden = true;
   $("chat-open").setAttribute("aria-expanded", "true");
   if (question) $("chat-input").value = question;
@@ -1249,6 +1286,7 @@ function closeChat() {
 }
 
 async function loadHistory() {
+  renderChatPending();
   $("chat-messages").innerHTML = "";
   const r = report();
   $("chat-context").textContent = r
@@ -1288,12 +1326,15 @@ async function sendChat(event) {
   const question = $("chat-input").value.trim();
   if (!question) return;
   if (state.busy) return toast("Wait for the current investigation to finish.");
+  const datasetId = state.id;
   appendMessage("user", question);
   $("chat-input").value = "";
   try {
     await startJob("chat", question);
   } catch (error) {
+    if (state.id !== datasetId) return;
     appendMessage("assistant", error.message, null, true);
+    if (!$("chat-input").value.trim()) $("chat-input").value = question;
   }
 }
 

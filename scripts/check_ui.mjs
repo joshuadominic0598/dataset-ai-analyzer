@@ -761,6 +761,135 @@ await dispatch("provider", "change", "ollama");
 assert.equal(elements.get("cloud-permission").hidden, true);
 assert.equal(elements.get("chat-cloud-permission").hidden, true);
 
+// Chat acknowledges submission immediately, then keeps real progress visible until the answer arrives.
+await dispatch("provider", "change", "offline");
+const until = async (condition) => {
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    if (condition()) return;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.fail("The chat workflow did not reach the expected state");
+};
+let acceptQuestion;
+const polls = [];
+let chatSubmissions = 0;
+responseFor = (path) => {
+  if (path === "/api/chat") {
+    chatSubmissions += 1;
+    return new Promise((resolve) => {
+      acceptQuestion = resolve;
+    });
+  }
+  if (path === "/api/run?id=visible-chat")
+    return new Promise((resolve) => polls.push(resolve));
+  throw new Error("Unexpected chat feedback request: " + path);
+};
+elements.get("chat-input").value = "Which records need attention?";
+const sendQuestion = dispatch("chat-form", "submit");
+await until(() => !!acceptQuestion);
+assert(
+  elements
+    .get("chat-messages")
+    .children.at(-1)
+    .innerHTML.includes("Which records need attention?"),
+);
+assert.equal(elements.get("chat-input").value, "");
+assert.equal(elements.get("chat-run-status").hidden, false);
+assert.equal(
+  elements.get("chat-run-heading").textContent,
+  "Sending your question",
+);
+assert.equal(elements.get("chat-send").disabled, true);
+elements.get("chat-input").value = "A draft for my next question";
+await dispatch("chat-form", "submit");
+assert.equal(
+  chatSubmissions,
+  1,
+  "Repeated submission must not duplicate an active request",
+);
+assert.equal(elements.get("chat-input").value, "A draft for my next question");
+acceptQuestion({ run_id: "visible-chat" });
+await until(() => polls.length === 1);
+assert.equal(
+  elements.get("chat-run-heading").textContent,
+  "Agent is responding",
+);
+assert(elements.get("chat-run-detail").textContent.includes("Question sent"));
+const originalDataset = hooks.state.id;
+hooks.state.id = "another-dataset";
+await dispatch("chat-open", "click");
+assert.equal(
+  elements.get("chat-run-status").hidden,
+  true,
+  "Pending replies belong to their dataset",
+);
+hooks.state.id = originalDataset;
+await dispatch("chat-open", "click");
+assert.equal(elements.get("chat-run-status").hidden, false);
+polls[0]({
+  id: "visible-chat",
+  status: "running",
+  payload: {
+    events: [
+      { kind: "rate_limit_wait", detail: { seconds: 15, reason: "retry" } },
+    ],
+  },
+});
+await until(() => polls.length === 2);
+assert(
+  elements
+    .get("chat-run-detail")
+    .textContent.includes("Respecting provider limits"),
+);
+assert.equal(elements.get("chat-run-status").hidden, false);
+polls[1]({
+  id: "visible-chat",
+  status: "completed",
+  payload: {
+    events: [],
+    result: { answer: "Here are the records to inspect.", evidence: {} },
+  },
+});
+await sendQuestion;
+assert(
+  elements
+    .get("chat-messages")
+    .children.at(-1)
+    .innerHTML.includes("Here are the records to inspect."),
+);
+assert.equal(elements.get("chat-run-status").hidden, true);
+assert.equal(elements.get("chat-send").disabled, false);
+assert.equal(elements.get("chat-send").textContent, "↑");
+assert.equal(elements.get("chat-input").value, "A draft for my next question");
+assert.equal(hooks.state.chatPending, null);
+
+// A failed answer clears the indicator, shows the error, and leaves the question ready to retry.
+responseFor = (path) =>
+  path === "/api/chat"
+    ? { run_id: "failed-chat" }
+    : {
+        id: "failed-chat",
+        status: "failed",
+        payload: {
+          events: [],
+          error: "The provider could not complete this answer.",
+        },
+      };
+elements.get("chat-input").value = "Please retry this question";
+await dispatch("chat-form", "submit");
+assert.equal(elements.get("chat-run-status").hidden, true);
+assert.equal(elements.get("chat-send").disabled, false);
+assert.equal(elements.get("chat-input").value, "Please retry this question");
+assert(
+  elements.get("chat-messages").children.at(-1).className.includes("error"),
+);
+assert(
+  elements
+    .get("chat-messages")
+    .children.at(-1)
+    .innerHTML.includes("could not complete"),
+);
+
 console.log(
   "Static UI contracts and real-report renderer checks passed. No browser visual checks were performed.",
 );

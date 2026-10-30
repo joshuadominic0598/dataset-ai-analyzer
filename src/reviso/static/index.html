@@ -644,8 +644,23 @@
           dataset's evidence to be sent to my selected cloud model</label
         >
       </div>
-      <p id="chat-run-status" class="chat-connection-note" role="status" hidden></p>
       <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+      <div
+        id="chat-run-status"
+        class="chat-response-status"
+        role="status"
+        aria-atomic="true"
+        hidden
+      >
+        <img src="/brain.svg" alt="" class="brain-icon" />
+        <div class="chat-response-copy">
+          <b id="chat-run-heading">Agent is responding</b>
+          <p id="chat-run-detail">Your question is being sent…</p>
+        </div>
+        <span class="chat-typing" aria-hidden="true"
+          ><i></i><i></i><i></i
+        ></span>
+      </div>
       <div class="chat-suggestions">
         <button data-question="Which changes need attention first?">
           What should I check first? ↗</button
